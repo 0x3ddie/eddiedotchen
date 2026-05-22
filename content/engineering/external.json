@@ -2,7 +2,7 @@
   {
     "title": "local-turboquant",
     "description": "Python library implementing TurboQuant KV cache compression for HuggingFace Transformers. One-line API plus CLI.",
-    "url": "https://github.com/Echen1246/local-turboquant"
+    "url": "https://github.com/0x3ddie/local-turboquant"
   },
   {
     "title": "Murmur (Android)",

@@ -75,7 +75,7 @@ function Layout({ children }: PropsWithChildren) {
             <Navigation link="https://twitter.com/ayocheddie" isExternal>
               X
             </Navigation>
-            <Navigation link="https://github.com/Echen1246" isExternal>
+            <Navigation link="https://github.com/0x3ddie" isExternal>
               GitHub
             </Navigation>
             <Navigation link="https://instagram.com/00eddiee" isExternal>
@@ -141,7 +141,7 @@ function Layout({ children }: PropsWithChildren) {
                       >
                         X
                       </Navigation>
-                      <Navigation link="https://github.com/Echen1246" isExternal>
+                      <Navigation link="https://github.com/0x3ddie" isExternal>
                         GitHub
                       </Navigation>
                       <Navigation link="https://instagram.com/00eddiee" isExternal>
