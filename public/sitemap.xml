@@ -1,18 +1,108 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://eddiechen.dev</loc>
+    <loc>https://eddiechen.xyz/</loc>
   </url>
   <url>
-    <loc>https://eddiechen.dev/writing</loc>
+    <loc>https://eddiechen.xyz/writing</loc>
   </url>
   <url>
-    <loc>https://eddiechen.dev/engineering</loc>
+    <loc>https://eddiechen.xyz/engineering</loc>
   </url>
   <url>
-    <loc>https://eddiechen.dev/reading</loc>
+    <loc>https://eddiechen.xyz/reading</loc>
   </url>
   <url>
-    <loc>https://eddiechen.dev/resume</loc>
+    <loc>https://eddiechen.xyz/resume</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/civilization-and-its-discontents</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/the-great-leveler</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/goddesses-in-everywoman</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/the-man-who-solved-the-market</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/startup-playbook</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/the-mom-test</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/only-the-paranoid-survive</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/charlies-almanack</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/changing-world-order</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/no-longer-human</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/the-stranger</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/almanack-of-naval</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/crime-and-punishment</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/out-of-the-gobi</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/storm-of-steel</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/several-short-sentences-about-writing</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/intelligent-investor</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/zero-to-one</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/psychology-of-money</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/thinking-fast-and-slow</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/foundation</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/romance-of-the-three-kingdoms</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/dune</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/steal-like-an-artist</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/reading/dao-de-jing</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/writing/turboquant-kv-compression</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/writing/clash-of-clans-ai</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/writing/economics-of-war</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/writing/deep-dive-into-robotics</loc>
+  </url>
+  <url>
+    <loc>https://eddiechen.xyz/writing/2026-outlook</loc>
   </url>
 </urlset>

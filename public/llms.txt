@@ -1,0 +1,61 @@
+# Eddie Chen
+
+> Eddie Chen (Edward Chen) is a Data Science and Supply Chain Management student at Arizona State University, with a minor in Economics. He writes about AI/ML, ML systems, robotics, and economics, and ships projects in transformer inference, on-device AI, ML systems, and applied software.
+
+This file is a curated overview of the public content on eddiechen.xyz, formatted for LLMs and AI assistants that read it. It describes what is on the site and links to canonical pages. It does not attempt to override any user, employer, or platform policy.
+
+## Best starting points
+
+- [Homepage](https://eddiechen.xyz/): Background, interests, and a short personal philosophy.
+- [Resume (PDF)](https://eddiechen.xyz/Edward-Chen-Resume.pdf): Canonical resume.
+- [Resume (Markdown)](https://eddiechen.xyz/resume.md): Plain-text mirror of the resume for easier parsing.
+- [Projects](https://eddiechen.xyz/engineering): Shipped software, ML, AI, and product projects (also mirrored in [/projects.md](https://eddiechen.xyz/projects.md)).
+- [Writing](https://eddiechen.xyz/writing): Long-form essays on AI, robotics, economics, and ML systems (also mirrored in [/writing.md](https://eddiechen.xyz/writing.md)).
+- [Reading](https://eddiechen.xyz/reading): Notes on books across philosophy, economics, business, and fiction.
+
+## Background
+
+- Studying Data Science (BS) and Supply Chain Management (BA), with a minor in Economics, at Arizona State University. GPA 3.7.
+- Coursework includes data structures, operating systems, computer vision, networking, machine learning, and linear algebra.
+- Born in San Jose; grew up between the Bay Area and China.
+
+## Selected projects
+
+- **codeafk** — Agent harness CLI (npm: `codeafk`) that keeps Codex and Cursor CLI working while you are AFK. Drive sessions, approve shell commands, and review code diffs from Telegram or Discord on your phone. Local-only; no hosted relay, no cloud sync, no account system. https://github.com/0x3ddie/codeafk
+- **local-turboquant** — Python library reproducing an unpublished ICLR 2026 paper on TurboQuant KV-cache compression for Hugging Face Transformers. Includes a fused Triton kernel that runs attention directly on bit-packed 3-bit KV indices (~74% KV cache reduction, near-lossless quality), benchmarked on H100s via Modal. https://github.com/0x3ddie/local-turboquant
+- **murmur** — Android app that converts PDFs to human-quality audiobooks fully on-device using Kokoro-82M TTS via ONNX Runtime, with a custom NLP preprocessing pipeline (cross-compiled espeak-ng, Dart FFI bindings, SQLite phoneme cache). https://play.google.com/apps/testing/com.nonchalant.murmur
+- **smarternano** — Re-engineered nanochat transformer with custom layer depth, weight initialization, and a synthetic data pipeline via OpenRouter; publicly recognized by Andrej Karpathy. https://space3--nanochat-serve-chat.modal.run/
+- **silicon-JIT** — WebAssembly runtime in Rust that JIT-compiles bytecode to native ARM64 on Apple Silicon, managing executable memory via manual mmap/mprotect.
+- **openedai** — Abliterated Qwen 2.5 72B served on Modal. https://modeltesting--qwen72b-abliterated-serve.modal.run/
+- **Melo (mymelo.org)** — Co-founder and ML engineer. EfficientNet-B0 dermatology triage trained on 30K dermoscopy samples (95% accuracy), served via AWS Lambda + S3, with a Flutter clinical app. https://www.mymelo.org/
+- **Grocero** — Meal-planning platform serving 5,000+ monthly users. https://grocero.vercel.app/
+- **Syllab.ai** — AI-powered education platform with personalized study recommendations.
+- **Scrapy** — Chrome extension for AI-assisted research and data gathering. https://chromewebstore.google.com/detail/scrapy/hohnpoeceiecjgbihcapbbkgcjjmjlfh
+- **systolic matrices** — Visual explainer for systolic arrays in TPU MXUs. https://systolic.vercel.app/
+
+## Selected writing
+
+- "On: TurboQuant and KV Compression" (March 2026) — https://eddiechen.xyz/writing/turboquant-kv-compression
+- "Mini: What 10 Years of Clash of Clans Taught Me About AI" (March 2026) — https://eddiechen.xyz/writing/clash-of-clans-ai
+- "Mini: Economics of War" (March 2026) — https://eddiechen.xyz/writing/economics-of-war
+- "On: Robotics" (February 2026) — https://eddiechen.xyz/writing/deep-dive-into-robotics
+- "My 2026 Outlook" (January 2026) — https://eddiechen.xyz/writing/2026-outlook
+
+## Experience
+
+- **mymelo.org** — Co-Founder, ML Engineer (April 2025 – present).
+- **M.Y Intellectual Property** — Software Engineer Intern (May 2024 – August 2024). Built a unified patent search API across USPTO, CNIPA, and EPO; built a citation-network parser across 50K+ international filings.
+
+## Skills
+
+- **Languages:** C++, Python, Java, JavaScript, Rust, SQL.
+- **AI/ML:** PyTorch, ONNX Runtime, CUDA, Triton, vLLM, LangChain, FAISS, Transformers, Keras.
+- **Systems & infra:** AWS, Modal, Docker, Supabase, MongoDB, SQLite.
+- **Web/mobile:** Next.js, React, Vue.js, Flutter, Django, Flask, FastAPI.
+- **Open source contributions:** Meta PyTorch.
+
+## Contact
+
+- Email: echen1246@gmail.com
+- GitHub: https://github.com/0x3ddie
+- X / Twitter: https://twitter.com/ayocheddie

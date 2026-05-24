@@ -1,5 +1,10 @@
 [
   {
+    "title": "codeafk",
+    "description": "Agent harness CLI that keeps Codex and Cursor CLI working while you're AFK. Drive sessions and approve shell commands from Telegram or Discord — no relay, no cloud, runs entirely on your laptop.",
+    "url": "https://github.com/0x3ddie/codeafk"
+  },
+  {
     "title": "local-turboquant",
     "description": "Python library implementing TurboQuant KV cache compression for HuggingFace Transformers. One-line API plus CLI.",
     "url": "https://github.com/0x3ddie/local-turboquant"

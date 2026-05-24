@@ -65,11 +65,20 @@ export default function App({ Component, pageProps }: AppProps) {
     <ChakraProvider theme={theme}>
       <DefaultSeo
         title="Eddie Chen"
-        description="about me + my reading, writing, and projects"
+        description="Eddie Chen — Data Science and Supply Chain student at Arizona State University. Writes and ships projects across AI/ML, ML systems, transformer inference, on-device AI, and applied software."
+        canonical="https://eddiechen.xyz/"
         openGraph={{
+          type: "website",
+          url: "https://eddiechen.xyz/",
           title: "Eddie Chen",
-          description: "about me + my reading, writing, and projects",
+          description:
+            "Eddie Chen — Data Science and Supply Chain student at Arizona State University. Writes and ships projects across AI/ML, ML systems, transformer inference, on-device AI, and applied software.",
           siteName: "Eddie Chen",
+        }}
+        twitter={{
+          handle: "@ayocheddie",
+          site: "@ayocheddie",
+          cardType: "summary",
         }}
       />
       {getLayout(<Component {...pageProps} />)}
