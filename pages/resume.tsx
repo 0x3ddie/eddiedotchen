@@ -20,23 +20,6 @@ const Resume: NextPageWithLayout = () => {
             </Button>
           </Link>
         </Flex>
-        <Text my={0}>
-          Edward Chen — Data Science (BS) and Supply Chain Management (BA) at
-          Arizona State University, with a minor in Economics. Selected projects
-          include{" "}
-          <Link href="https://github.com/0x3ddie/local-turboquant" isExternal color="blue.500">
-            local-turboquant
-          </Link>{" "}
-          (KV-cache compression for transformer inference),{" "}
-          <Link href="/engineering" color="blue.500">
-            murmur and smarternano
-          </Link>
-          , and co-founding{" "}
-          <Link href="https://www.mymelo.org/" isExternal color="blue.500">
-            mymelo.org
-          </Link>
-          .
-        </Text>
         <Text my={0} fontSize="sm" color="gray.600">
           Plain-text mirror:{" "}
           <Link href="/resume.md" color="blue.500" isExternal>
