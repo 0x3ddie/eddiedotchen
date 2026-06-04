@@ -6,9 +6,13 @@ async function writing() {
   const metadata = [];
   const basePath = path.join(process.cwd(), "content", "writing");
 
+  // Entries in external.json default to `external: true` (typical case: link
+  // to off-site content). To support listing internal-route entries here too
+  // (e.g. /writing/scaling-book points at a custom static page), allow each
+  // entry to override `external` explicitly.
   const external = JSON.parse(
     fs.readFileSync(path.join(basePath, "external.json"), "utf8")
-  ).map((item) => ({ ...item, external: true }));
+  ).map((item) => ({ ...item, external: item.external !== false }));
   const postPaths = fs.readdirSync(basePath, "utf8");
   const posts = await Promise.all(
     postPaths

@@ -35,11 +35,30 @@ function getAllEngineeringSlugs() {
   return data.filter((item) => !item.external).map((item) => item.url);
 }
 
+function getAllScalingBookSlugs() {
+  const manifestPath = path.join(
+    process.cwd(),
+    "content",
+    "writing",
+    "scaling-book",
+    "index.json"
+  );
+  if (!fs.existsSync(manifestPath)) return [];
+  const data = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  return data.map((c) => `/writing/scaling-book/${c.slug}`);
+}
+
 async function main() {
   const bookSlugs = getAllBookSlugs();
   const writingSlugs = getAllWritingSlugs();
   const engineeringSlugs = getAllEngineeringSlugs();
-  const allSlugs = [...bookSlugs, ...writingSlugs, ...engineeringSlugs];
+  const scalingBookSlugs = getAllScalingBookSlugs();
+  const allSlugs = [
+    ...bookSlugs,
+    ...writingSlugs,
+    ...engineeringSlugs,
+    ...scalingBookSlugs,
+  ];
 
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -57,6 +76,9 @@ async function main() {
   </url>
   <url>
     <loc>${SITE_URL}/resume</loc>
+  </url>
+  <url>
+    <loc>${SITE_URL}/writing/scaling-book</loc>
   </url>${allSlugs
     .map((slug) => {
       return `

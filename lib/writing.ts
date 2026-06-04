@@ -43,7 +43,18 @@ export function getAllPostData(): Post[] {
 export function getAllSlugs(): string[] {
   const data = getAllPostData();
 
-  return data.filter((item) => !item.external).map((item) => item.url);
+  // Only generate dynamic paths for entries that have a real MDX file in
+  // content/writing/. Skips internal-route entries (e.g. /writing/scaling-book)
+  // which are served by their own static page and would conflict with the
+  // [slug].tsx dynamic route at build time.
+  const writingDir = path.join(process.cwd(), "content", "writing");
+  return data
+    .filter((item) => !item.external)
+    .filter((item) => {
+      const slug = item.url.replace(/^\/writing\//, "");
+      return fs.existsSync(path.join(writingDir, `${slug}.mdx`));
+    })
+    .map((item) => item.url);
 }
 
 export async function getPost(slug: string): Promise<MaybeContent<Post>> {

@@ -2,6 +2,9 @@
 **/index.json
 !content/deep-dives/index.json
 
+# auto-synced from notes repo (source of truth lives at github.com/0x3ddie/notes)
+/content/writing/scaling-book/
+
 # dependencies
 /node_modules
 /node_modules.nosync
@@ -38,3 +41,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# broken-git backups created by the recovery procedure (see README)
+.git.broken-*/

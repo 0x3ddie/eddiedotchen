@@ -9,6 +9,7 @@ import React from "react";
 import { useRouter } from "next/router";
 import { Lora } from "@next/font/google";
 import { Analytics } from "@vercel/analytics/react";
+import "katex/dist/katex.min.css";
 
 const lora = Lora({ subsets: ["latin"], display: "swap" });
 
