@@ -2,6 +2,10 @@
 
 A plain-text index of https://eddiechen.xyz/writing. Newest first.
 
+## 0-1 : 2-100
+*September 19, 2026* — Coming soon.
+https://eddiechen.xyz/writing/0-1-2-100
+
 ## Scaling Book
 *May 13, 2026* — Working through the Scaling Book chapter by chapter: depth notes plus worked solutions.
 https://eddiechen.xyz/writing/scaling-book

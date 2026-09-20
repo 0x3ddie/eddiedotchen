@@ -2,6 +2,12 @@ import { serialize } from "next-mdx-remote/serialize";
 import path from "path";
 import fs from "fs";
 
+// next-mdx-remote derives its JSX runtime from NODE_ENV, overriding
+// mdxOptions.development. Match next build without Unix-only shell syntax.
+if (process.argv.includes("--production")) {
+  process.env.NODE_ENV = "production";
+}
+
 async function writing() {
   const metadata = [];
   const basePath = path.join(process.cwd(), "content", "writing");
@@ -27,7 +33,7 @@ async function writing() {
 
         return {
           ...source.frontmatter,
-          url: "/" + path.join("writing", fileName.split(".")[0]),
+          url: "/" + path.posix.join("writing", fileName.split(".")[0]),
           external: false,
         };
       })
@@ -68,7 +74,7 @@ async function books() {
 
         return {
           ...source.frontmatter,
-          slug: "/" + path.join("reading", fileName.split(".")[0]),
+          slug: "/" + path.posix.join("reading", fileName.split(".")[0]),
           summary: source.compiledSource,
         };
       })
@@ -107,7 +113,7 @@ async function engineering() {
 
         return {
           ...source.frontmatter,
-          url: "/" + path.join("engineering", fileName.split(".")[0]),
+          url: "/" + path.posix.join("engineering", fileName.split(".")[0]),
           external: false,
         };
       })
