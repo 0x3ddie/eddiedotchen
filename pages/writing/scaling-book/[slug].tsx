@@ -39,7 +39,13 @@ const ChapterPage: NextPageWithLayout<ChapterProps> = ({ chapter, prev, next }) 
             </NextLink>
           </Text>
           <Heading size="lg">{metadata.title}</Heading>
-          <Prose>
+          {/* Wide display equations and tables scroll inside the column instead of widening the page on phones. */}
+          <Prose
+            sx={{
+              ".katex-display": { overflowX: "auto", overflowY: "hidden" },
+              table: { display: { base: "block", md: "table" }, overflowX: "auto" },
+            }}
+          >
             <MDXRemote compiledSource={source} scope={{}} frontmatter={{}} />
           </Prose>
           <Flex justify="space-between" mt={8} fontSize="sm">
