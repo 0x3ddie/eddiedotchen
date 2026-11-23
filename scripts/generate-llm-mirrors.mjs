@@ -23,6 +23,9 @@ import {
   renderTwin,
   renderSection,
   conversionWarnings,
+  hiddenPostPattern,
+  compareByRating,
+  ratingOf,
 } from "./lib/site-content.mjs";
 
 const PUBLIC_DIR = path.join(process.cwd(), "public");
@@ -32,6 +35,11 @@ const crawlers = JSON.parse(
 );
 
 const log = (line) => console.log(`[llm-mirrors] ${line}`);
+
+// `npm run dev` passes --dev: a problem is reported and the dev server still
+// starts, so a local draft can never lock the author out. `npm run build`
+// does not, and stops on the same problem.
+const DEV = process.argv.includes("--dev");
 
 // --- llms.txt ---------------------------------------------------------------
 
@@ -86,11 +94,19 @@ function llmsTxt({ docs, home, resume, projects, writing, scalingBook, reading }
   }
   sections.push(
     list("Optional", [
-      link("Reading", twin(reading.listing), `Notes on ${reading.books.length} books, highest rated first.`),
+      link("Reading", twin(reading.listing), `All ${reading.books.length} books, highest rated first.`),
+      // Books with notes; a book with only a byline is a placeholder.
       ...reading.books
+        .filter((d) => !d.stub)
         .slice()
-        .sort((a, b) => b.rating - a.rating)
-        .map((d) => link(`${d.title} — ${d.author}`, twin(d), `Read ${d.date}, rated ${d.rating}/10.`)),
+        .sort(compareByRating)
+        .map((d) =>
+          link(
+            `${d.title} — ${d.author}`,
+            twin(d),
+            [d.date && `Read ${d.date}`, ratingOf(d) !== null && `rated ${ratingOf(d)}/10`].filter(Boolean).join(", ") + "."
+          )
+        ),
     ])
   );
 
@@ -212,10 +228,12 @@ async function main() {
 
   // Hidden posts must not appear anywhere: not as a file, not as a link.
   for (const slug of hiddenSlugs) {
-    const pattern = new RegExp(`/writing/${slug.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`);
+    const pattern = hiddenPostPattern(slug);
     for (const [name, text] of outputs) {
       if (pattern.test(name) || pattern.test(text)) {
-        throw new Error(`hidden post "${slug}" would be exposed by ${name}`);
+        const problem = `hidden post "${slug}" is linked from ${name}`;
+        if (!DEV) throw new Error(`${problem}. Remove the link, or unhide the post.`);
+        log(`WARNING ${problem} (a production build stops here)`);
       }
     }
   }
@@ -251,6 +269,11 @@ async function main() {
 }
 
 main().catch((error) => {
+  if (DEV) {
+    console.warn(`[llm-mirrors] WARNING: Markdown twins not generated: ${error.message}`);
+    console.warn("[llm-mirrors] The dev server starts anyway; `npm run build` will stop here.");
+    return;
+  }
   console.error(`[llm-mirrors] FAILED: ${error.message}`);
   process.exit(1);
 });

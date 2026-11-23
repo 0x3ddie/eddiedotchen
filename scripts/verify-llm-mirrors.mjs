@@ -16,6 +16,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { extractPdfText } from "./lib/pdf-text.mjs";
+import { hiddenPostPattern, MEDIA_KINDS, mediaLabel } from "./lib/site-content.mjs";
 
 const ROOT = process.cwd();
 const PUBLIC_DIR = path.join(ROOT, "public");
@@ -63,6 +64,23 @@ function removeElements(html, tag, open) {
   return out + html.slice(pos);
 }
 
+const attribute = (attrs, name) => {
+  const m = new RegExp(`\\s${name}="([^"]*)"`, "i").exec(attrs);
+  return m ? decodeEntities(m[1]) : null;
+};
+
+// A media element has no text; read it as the label its twin's link uses.
+function mediaAsText(tag, attrs, inner) {
+  const source = /<source\b([^>]*)>/i.exec(inner);
+  const src = attribute(attrs, "src") ?? (source ? attribute(source[1], "src") : null);
+  const label = mediaLabel({
+    title: attribute(attrs, "title"),
+    ariaLabel: attribute(attrs, "aria-label"),
+    src,
+  });
+  return ` ${MEDIA_KINDS[tag.toLowerCase()]} ${label} `;
+}
+
 const INLINE_TAGS = new Set([
   "a", "span", "strong", "em", "b", "i", "code", "sup", "sub", "u", "s", "del", "mark", "small",
 ]);
@@ -72,7 +90,10 @@ function htmlToText(html) {
     .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
     .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
     // React's server renderer separates adjacent text nodes with <!-- -->.
-    .replace(/<!--[\s\S]*?-->/g, "");
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<(video|audio|iframe)\b([^>]*)>([\s\S]*?)<\/\1>/gi, (_, tag, attrs, inner) =>
+      mediaAsText(tag, attrs, inner)
+    );
   // KaTeX renders each formula twice: MathML carrying the TeX source, and
   // presentational spans. Keep the TeX, which is what the Markdown holds.
   text = text.replace(
@@ -222,7 +243,7 @@ async function checkPage(page) {
 function checkHidden() {
   const generated = manifest.files.map((name) => path.join(PUBLIC_DIR, name));
   for (const slug of manifest.hidden) {
-    const pattern = new RegExp(`/writing/${slug.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`);
+    const pattern = hiddenPostPattern(slug);
     if (fs.existsSync(path.join(PUBLIC_DIR, "writing", `${slug}.md`))) {
       fail(slug, "hidden post has a Markdown twin");
     }

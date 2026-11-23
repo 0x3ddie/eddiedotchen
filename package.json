@@ -9,7 +9,7 @@
     "preflight": "node scripts/preflight.mjs",
     "predev": "npm run preflight",
     "prebuild": "npm run preflight",
-    "dev": "npm run generate && npm run mirrors && next dev",
+    "dev": "npm run generate && npm run mirrors -- --dev && next dev",
     "build": "npm run generate -- --production && npm run mirrors && next build && npm run verify:mirrors",
     "start": "next start",
     "lint": "next lint",

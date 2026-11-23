@@ -14,6 +14,7 @@ import Layout from "../../components/Layout";
 import { Prose } from "@nikolovlazar/chakra-ui-prose";
 import { MDXRemote } from "next-mdx-remote";
 import { Book, getAllBooks, getAllSlugs, getBook } from "../../lib/books";
+import { bookByline, bookListLine, compareByRating } from "../../lib/book-format";
 import { Bookshelf } from "../../components/Bookshelf";
 import { Content } from "../../lib/mdx";
 import { NextSeo } from "next-seo";
@@ -29,10 +30,10 @@ const Books: NextPageWithLayout<BooksProps> = ({ books, book }) => {
       <>
         <NextSeo
           title={book.metadata.title}
-          description={`By: ${book.metadata.author} - Read: ${book.metadata.date} - Rating: ${book.metadata.rating}/10`}
+          description={bookByline(book.metadata)}
           openGraph={{
             title: book.metadata.title,
-            description: `By: ${book.metadata.author} - Read: ${book.metadata.date} - Rating: ${book.metadata.rating}/10`,
+            description: bookByline(book.metadata),
           }}
         />
         <Stack spacing={3}>
@@ -40,8 +41,7 @@ const Books: NextPageWithLayout<BooksProps> = ({ books, book }) => {
             <VStack align="flex-start" flexGrow={1}>
               <Heading size="xl">{book.metadata.title}</Heading>
               <Text color="gray.400" fontSize="xl">
-                By: {book.metadata.author} - Read: {book.metadata.date} -
-                Rating: {book.metadata.rating}/10
+                {bookByline(book.metadata)}
               </Text>
             </VStack>
           </Flex>
@@ -59,7 +59,7 @@ const Books: NextPageWithLayout<BooksProps> = ({ books, book }) => {
       <Stack spacing={5}>
         {books
           .slice()
-          .sort((a, b) => b.rating - a.rating)
+          .sort(compareByRating)
           .map((book, index) => (
             <Stack key={book.title} scrollMarginTop={20}>
               <Stack>
@@ -80,9 +80,9 @@ const Books: NextPageWithLayout<BooksProps> = ({ books, book }) => {
                     <Text color="#999" size="md">
                       {book.author}
                     </Text>
-                    <Text color="#666">
-                      Read: {book.date} • Rating: {book.rating}/10
-                    </Text>
+                    {bookListLine(book) && (
+                      <Text color="#666">{bookListLine(book)}</Text>
+                    )}
                     <Prose>
                       <MDXRemote compiledSource={book.summary} scope={{}} frontmatter={{}} />
                     </Prose>

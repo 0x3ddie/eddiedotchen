@@ -78,7 +78,8 @@ export function isoDate(value) {
 //     page drops it too (inline tags lose their tags, HTML blocks vanish).
 //   - in MDX pages, presentational JSX (<span style={...}>, <sub>, <strong>)
 //     loses its tags and keeps its text; <br/>, <a href> and <img> become their
-//     Markdown equivalents. Any other component is left as written and reported.
+//     Markdown equivalents; <video>, <audio> and <iframe> become a labelled link.
+//     Any other component is left as written and reported.
 //   - site-relative link and image URLs become absolute.
 // Code, inline code and math are copied verbatim, never rewritten.
 
@@ -107,6 +108,25 @@ async function loadMdxTools() {
 
 const isSiteRelative = (url) => typeof url === "string" && url.startsWith("/") && !url.startsWith("//");
 const absUrl = (url) => (isSiteRelative(url) ? SITE_URL + url : url);
+
+// Media a page shows with no text of its own. A twin names each one in a link,
+// "[Video: wood-4x.mp4](url)", and the verifier reads the same label from the
+// rendered element, so page and twin agree word for word.
+export const MEDIA_KINDS = { video: "Video", audio: "Audio", iframe: "Embed" };
+
+/** The words a twin uses for a media element: its title, else its file name. */
+export function mediaLabel({ title, ariaLabel, src }) {
+  const named = (title || ariaLabel || "").trim();
+  if (named) return named.replace(/[\[\]]/g, "");
+  const file = String(src || "").split(/[?#]/)[0].split("/").filter(Boolean).pop() || "media";
+  let decoded = file;
+  try {
+    decoded = decodeURIComponent(file);
+  } catch {
+    // keep it as written
+  }
+  return decoded.replace(/[\[\]]/g, "");
+}
 
 /** A JSX attribute's value when it is a plain string, else null. */
 const jsxAttribute = (node, name) => {
@@ -153,6 +173,23 @@ function planEdits(tree, source) {
       if (src === null) return false;
       const alt = (jsxAttribute(node, "alt") || "").replace(/[\[\]]/g, "");
       edits.push({ start, end, text: `![${alt}](${absUrl(src)})` });
+      return true;
+    }
+    if (MEDIA_KINDS[name]) {
+      let src = jsxAttribute(node, "src");
+      if (src === null) {
+        const source = children.find(
+          (c) => /^mdxJsx/.test(c.type) && String(c.name || "").toLowerCase() === "source"
+        );
+        if (source) src = jsxAttribute(source, "src");
+      }
+      if (src === null) return false;
+      const label = mediaLabel({
+        title: jsxAttribute(node, "title"),
+        ariaLabel: jsxAttribute(node, "aria-label"),
+        src,
+      });
+      edits.push({ start, end, text: `[${MEDIA_KINDS[name]}: ${label}](${absUrl(src)})` });
       return true;
     }
     if (name === "a") {
@@ -316,6 +353,43 @@ async function resumeDoc() {
   });
 }
 
+/**
+ * Matches a link to a hidden post's page or twin: /writing/<slug>, its .md,
+ * a trailing slash, or a #fragment. Asset paths under /writing/<slug>/ (an
+ * image or clip that a visible post uses) are not the post and do not match.
+ */
+export function hiddenPostPattern(slug) {
+  const escaped = slug.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`/writing/${escaped}(?![\\w-])(?!/[\\w.-])`);
+}
+
+// Ratings and bylines follow lib/book-format.ts (ratingOf, bookByline, bookListLine,
+// compareByRating), so an unrated book reads the same on the page and here.
+export function ratingOf(book) {
+  const { rating } = book;
+  if (rating === null || rating === undefined || rating === "") return null;
+  const value = Number(rating);
+  return Number.isFinite(value) ? value : null;
+}
+export function bookByline(book) {
+  const rating = ratingOf(book);
+  return [book.author && `By: ${book.author}`, book.date && `Read: ${book.date}`, rating !== null && `Rating: ${rating}/10`]
+    .filter(Boolean)
+    .join(" - ");
+}
+export function bookListLine(book) {
+  const rating = ratingOf(book);
+  return [book.date && `Read: ${book.date}`, rating !== null && `Rating: ${rating}/10`].filter(Boolean).join(" • ");
+}
+export function compareByRating(a, b) {
+  const ra = ratingOf(a);
+  const rb = ratingOf(b);
+  if (ra === null && rb === null) return 0;
+  if (ra === null) return 1;
+  if (rb === null) return -1;
+  return rb - ra;
+}
+
 /** Slugs of posts marked `hidden: true`. Read from the files, not the index. */
 export function hiddenPostSlugs() {
   return fs
@@ -427,14 +501,14 @@ async function readingDocs() {
   for (const entry of index) {
     const slug = entry.slug.replace(/^\/reading\//, "");
     const { content } = matter(read("content", "books", `${slug}.mdx`));
-    const byline = `By: ${entry.author} - Read: ${entry.date} - Rating: ${entry.rating}/10`;
+    const byline = bookByline(entry);
     const source = `content/books/${slug}.mdx`;
     books.push(makeDoc({
       kind: "book",
       url: entry.slug,
       title: entry.title,
       author: entry.author,
-      rating: entry.rating,
+      rating: ratingOf(entry),
       description: byline,
       date: entry.date,
       source,
@@ -446,7 +520,7 @@ async function readingDocs() {
   }
 
   // Same order as the page: highest rating first, ties in index order.
-  const byRating = books.slice().sort((a, b) => b.rating - a.rating);
+  const byRating = books.slice().sort(compareByRating);
   const listing = makeDoc({
     kind: "reading-index",
     url: "/reading",
@@ -456,7 +530,7 @@ async function readingDocs() {
     body: byRating
       .map(
         (b) =>
-          `## [${b.title}](${abs(b.url)})\n\n${b.author}\n\nRead: ${b.date} • Rating: ${b.rating}/10\n\n${b.summary}`
+          [`## [${b.title}](${abs(b.url)})`, b.author, bookListLine(b), b.summary].filter(Boolean).join("\n\n")
       )
       .join("\n\n"),
   });

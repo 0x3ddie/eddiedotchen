@@ -95,7 +95,7 @@ Every page also exists as Markdown at the same URL plus `.md` (the home page is 
 | `/robots.txt` | `lib/ai-crawlers.json` (the crawlers named as allowed) |
 | `/sitemap.xml`, `/sitemap-markdown.xml` | the list of pages and of twins |
 
-None of these files is committed or edited by hand; they are gitignored and regenerated on every `npm run dev` and `npm run build`. To regenerate without building:
+None of these files is committed or edited by hand; they are gitignored and regenerated on every `npm run dev` and `npm run build`. Under `npm run dev` a problem (a link to a hidden post, a post that does not compile) is printed as a warning and the dev server starts; `npm run build` stops on it. To regenerate without building:
 
 ```bash
 npm run generate && npm run mirrors

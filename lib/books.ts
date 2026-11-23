@@ -6,7 +6,8 @@ export interface Book {
   title: string;
   author: string;
   date: string;
-  rating: number;
+  /** Out of 10. Null (a blank `rating:`) means not rated yet. */
+  rating: number | string | null;
   coverImage: string;
   spineColor: string;
   textColor: string;
