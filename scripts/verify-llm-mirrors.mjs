@@ -442,8 +442,10 @@ const RESUME_LABELS = new Set([
   "writing", "github", "x", "twitter", "portfolio", "open", "source",
   "a", "an", "the", "to", "of", "and", "in", "on", "for", "with", "at", "by",
 ]);
-const RESUME_WORDING = new Set(["wrote"]); // "Wrote a fused Triton attention kernel"
-const PDF_LABELS = new Set(["major", "contributions", "portfolio", "github"]);
+// Wording the Markdown may use where the PDF words it differently; none at present.
+const RESUME_WORDING = new Set([]);
+// PDF words the Markdown may leave out; none at present.
+const PDF_LABELS = new Set([]);
 const RESUME_PDF = path.join(PUBLIC_DIR, "Edward-Chen-Resume.pdf");
 let resumeStatus = "";
 

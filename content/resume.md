@@ -3,87 +3,84 @@
 # changes, update this file to say what the new PDF says and set the new hash
 # (shasum -a 256 public/Edward-Chen-Resume.pdf); the build fails until both match.
 pdf: /Edward-Chen-Resume.pdf
-pdf_sha256: e775f1b0acb62d9ef0c1dc089e6784ef852ef080b1bc4dbb849fcf3a8422f3bc
+pdf_sha256: 2a2798e3d18fe6693d12e68b813c8c234f67041b4ae87811a0f7192f06f7646f
 ---
 
 # Edward Chen — Resume
 
-San Francisco, California · echen1246@gmail.com
-GitHub: https://github.com/0x3ddie · Portfolio: https://eddiechen.xyz/
+San Ramon, CA · echen1246@gmail.com
+[linkedin.com/in/eddie17](https://linkedin.com/in/eddie17) · [github.com/0x3ddie](https://github.com/0x3ddie) · [eddiechen.xyz](https://eddiechen.xyz/)
 
 Canonical PDF: https://eddiechen.xyz/Edward-Chen-Resume.pdf
 
 ---
 
-## Projects
+## Education
 
-### KV-Cache Compression for Transformer Inference — `local-turboquant`
-*PyTorch, Modal, Transformers, CUDA*
+**Arizona State University** — B.S. Data Science, B.A. Business Administration
+Expected December 2027 · GPA: 3.7 — Dean’s List
 
-- Shipped a pip-installable library with a one-line activate() API, wrapper, and CLI exposing per-generation savings, throughput, and free VRAM; benchmarked on H100s via Modal.
-- Wrote a fused Triton attention kernel that runs directly on bit-packed 3-bit KV indices without decompressing to FP16, achieving 74% KV cache memory reduction at near-lossless quality.
-
-Repo: https://github.com/0x3ddie/local-turboquant
-
-### Modified Transformer Architecture — `smarternano`
-*PyTorch, CUDA, OpenRouter, Transformers*
-
-- Re-engineered the nanochat architecture with custom layer depth and weight initialization, re-trained on Nvidia's Nemotron Nano dataset; publicly recognized by Andrej Karpathy.
-- Built a synthetic data generation pipeline via OpenRouter to align the model's personality, achieving coherence comparable to 560M parameter models.
-
-Demo: https://space3--nanochat-serve-chat.modal.run/
-
-### AI-Native App — `murmur`
-*ONNX, Flutter, AI Engineering*
-
-- Built and released a mobile app that converts any PDF into human-quality audio entirely on-device, achieving 3-second load-to-playback with zero server dependencies. Deployed Kokoro-82M transformer TTS on Android via ONNX Runtime, forking the runtime to isolate inference on a background thread for performance.
-- Built an NLP preprocessing pipeline by cross-compiling espeak-ng and writing Dart FFI bindings for IPA phonemization, implementing token-aware batch splitting against the model's tokenizer vocab, and caching per-sentence phonemes in SQLite to eliminate redundant compute at inference time.
-
-App: https://play.google.com/apps/testing/com.nonchalant.murmur
+Coursework: Operating Systems, Data Structures, Deep Learning, Machine Learning, Computer Vision, Linux, Lin. Algebra
 
 ---
 
-## Education
+## Skills
 
-**Arizona State University** — August 2023 to May 2027
-BS Data Science, Minor in Economics. GPA: 3.7.
+- **Languages:** Python, C, C++, SQL, Java, TypeScript, MATLAB
+- **AI/ML:** PyTorch, JAX, Hugging Face Transformers, vLLM/SGLang, ONNX Runtime, FAISS, PPO/GRPO, llama.cpp
+- **Inference/GPU:** CUDA/Triton, Quantization, KV-Cache Compression, FlashAttention
+- **Tools:** Docker, Linux, Snowflake, FastAPI, Git, GitHub Actions, GitLab CI, Flutter, Hermes Harness, AWS
 
-Coursework: Data Structures, Operating Systems, Computer Vision, Deep Learning, Machine Learning, Linear Algebra.
+---
 
-Activities: Scholars of Finance, Association of Computing Machinery.
+## Open Source (merged)
+
+- **PyTorch:** Fixed export-state detection ([#176499](https://github.com/pytorch/pytorch/pull/176499)); added bytearray methods to Dynamo ([#204844](https://github.com/pytorch/pytorch/pull/204844)); Muon docs ([#177262](https://github.com/pytorch/pytorch/pull/177262))
+- **llama.cpp:** fixed server output_config.effort handling ([#32321](https://github.com/ggml-org/llama.cpp/pull/32321)); fixed crash from end-of-sequence token error ([#32377](https://github.com/ggml-org/llama.cpp/pull/32377))
+- **Triton:** added fp16/bf16 constant support ([#12778](https://github.com/triton-lang/triton/pull/12778))
 
 ---
 
 ## Experience
 
 ### Age of Learning — Data Engineer Intern
-*June 2026 to August 2026*
+*June 2026 – August 2026 · Los Angeles, CA*
 
-- Built an internal AI agent platform with custom tools, persistent context, and subagent execution, enabling secure access to production systems and automated GitLab merge-request reviews.
-- Deployed monitoring for reports backed by a 314M-row production table, tracing data failures across 4,000+ data models to the responsible pipeline or code change.
-- Extended a personalized activity-ranking system while preserving curriculum requirements, improving learner continuation after lessons by 20% in an A/B test.
+- Engineered a Snowflake SQL feature pipeline (48 student engagement and skill-mastery features) powering a personalized activity recommender that raised post-lesson continuation by 14%.
+- Built an agentic monitoring system for marketing reports that uncovered $4.35M in misattributed spend. Saved ~$113K in annual AI and data platform costs by removing redundant query jobs and software subscriptions.
+- Built an internal AI platform to automate GitLab code reviews and to trace failures to their source across ~200 tables and ~4,000 data models.
 
-### mymelo.org — Co-Founder, Software Engineer
-*April 2025 to June 2026*
+### [mymelo.org](https://mymelo.org) — Co-Founder, Software Engineer
+*April 2025 – June 2026 · San Francisco, CA*
 
-- Co-founded Melo as a winning project at HackTech and scaled it into a patient-and-provider platform for continuous skin monitoring and risk-based triage.
-- Trained EfficientNet-B0 on 30K dermoscopy images with transfer learning and class-weighted augmentation, achieving 95% recall for melanoma triage on a held-out test split.
-- Engineered AWS S3 + Lambda pipeline to compress 3-5MB images to 300KB WebP, reducing per-image disk footprint by 94% while preserving originals in S3 for compliance. Built mobile platform end-to-end.
-
-### M.Y Intellectual Property — Software Engineer Intern
-*May 2024 to August 2024*
-
-- Engineered a unified patent search API aggregating USPTO, CNIPA, and EPO databases into a single query interface, reducing cross-jurisdictional research from 3 workflows to 1 and cutting attorney lookup time by 60%.
-- Built a citation network parser to extract patent family relationships across 50K+ international filings, automating competitor portfolio analysis for 15+ client engagements.
+- Trained the melanoma classifier (EfficientNet-B0, 30K dermoscopy images) to 95% recall at 90% specificity on a held-out split.
+- Shipped it in a patient and provider app that won 2nd at Caltech's HackTech 2025 and was trialed at UCSD-affiliated dermatology; ran 50+ user interviews.
+- Rebuilt image storage and edge compression on AWS S3/Lambda after a launch-day storage failure, cutting median scan-preview load from 5s to 1s and image size by 80%.
 
 ---
 
-## Skills
+## Projects
 
-- **Languages:** C++, Python, Java, CUDA.
-- **Technologies:** AWS, Docker, Flutter, React, Next.js, Django, Flask, Supabase, Git, MongoDB, Snowflake, SQLite.
-- **AI/ML:** PyTorch, FastAPI, ONNX Runtime, RL, vLLM, SFT, LoRA, FAISS, Synthetic Data, Transformers, JAX.
-- **Open-source contributions:** Meta PyTorch.
+### local-turboquant — PyTorch, Modal, transformers
+
+Repo: [github.com/0x3ddie/local-turboquant](https://github.com/0x3ddie/local-turboquant)
+
+- Implemented Google Research's TurboQuant (ICLR 2026) as a pip-installable library for HF Transformers: 4-bit KV-cache quantization cuts cache memory by 74% on Llama 3.1-8B (9.5 GB to 2.5 GB at 73K context) at 0.995 cosine similarity.
+- Wrote a fused Triton kernel that computes attention directly on bit-packed keys and values with no decompression, at 2.25x baseline decode latency.
+
+### RunescapeRL — RLHF, Python, C, CUDA, PPO, LSTM
+
+Repo: [github.com/0x3ddie/runescape-agent](https://github.com/0x3ddie/runescape-agent)
+
+- Wrote a game simulator in C around 100x faster than its Python reference and bit-exact to it over 61M game ticks; added CUDA graphs to the PPO update, raising training throughput 11x to ~28K decisions/s on one G4 GPU.
+- Trained a recurrent PPO agent to navigate the map through clicks, chop, mine, fish and fight from game rewards on a private RuneScape server.
+
+### murmur — ONNX Runtime, Flutter, SQLite
+
+App: https://play.google.com/apps/testing/com.nonchalant.murmur
+
+- Built an Android app that reads PDFs aloud with fully on-device inference, reaching initial playback in approximately three seconds during testing.
+- Moved inference to a background thread through a modified Flutter/ONNX integration; connected native speech preprocessing through Dart FFI and cached sentence results in SQLite.
 
 ---
 
