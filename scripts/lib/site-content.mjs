@@ -311,18 +311,20 @@ function applyEdits(source, { edits, verbatim }) {
   pieces.push({ text: source.slice(cursor), keep: false });
 
   // Blank lines left by removed nodes collapse, but never inside code or math.
-  const tidy = (text) => text.replace(/^[ \t]+$/gm, "").replace(/\n{3,}/g, "\n\n");
-  let out = "";
-  let prose = "";
-  for (const piece of pieces) {
-    if (piece.keep) {
-      out += tidy(prose) + piece.text;
-      prose = "";
-    } else {
-      prose += piece.text;
-    }
-  }
-  return (out + tidy(prose)).trim();
+  // Verbatim pieces stand in as placeholders while the text is tidied, so the
+  // indentation in front of an indented $$ or ``` (inside a list item) is seen
+  // as part of that line and kept; removing it would move the block out of its
+  // list and change how the rest of the document parses.
+  const kept = [];
+  const joined = pieces
+    .map((piece) => {
+      if (!piece.keep) return piece.text;
+      kept.push(piece.text);
+      return `\u0000${kept.length - 1}\u0000`;
+    })
+    .join("");
+  const tidied = joined.replace(/^[ \t]+$/gm, "").replace(/\n{3,}/g, "\n\n");
+  return tidied.replace(/\u0000(\d+)\u0000/g, (_, i) => kept[Number(i)]).trim();
 }
 
 /**
