@@ -92,20 +92,37 @@ export function profileJsonLd() {
   };
 }
 
-/** schema.org Article for a post or a Scaling Book chapter. */
+// A body shorter than this is a placeholder ("Coming soon.", an empty chapter).
+// Mirrors STUB_CHARS in scripts/lib/site-content.mjs.
+export const PLACEHOLDER_CHARS = 200;
+
+/** True when a Markdown body (frontmatter removed) is only a placeholder. */
+export function isPlaceholder(body: string): boolean {
+  return body.trim().length < PLACEHOLDER_CHARS;
+}
+
+/**
+ * schema.org Article for a post (Eddie's own writing) or a Scaling Book
+ * chapter (his notes on someone else's book: the headline says so and
+ * `isBasedOn` names the book).
+ */
 export function articleJsonLd(article: {
   path: string;
   title: string;
   description?: string;
   date?: string;
   image?: string;
+  notesOn?: { name: string; url: string };
 }) {
   const url = absoluteUrl(article.path);
   const published = isoDate(article.date);
   return {
     "@context": "https://schema.org",
     "@type": "Article",
-    headline: article.title,
+    headline: article.notesOn ? `Notes on ${article.title}` : article.title,
+    ...(article.notesOn
+      ? { isBasedOn: { "@type": "CreativeWork", name: article.notesOn.name, url: article.notesOn.url } }
+      : {}),
     ...(article.description ? { description: article.description } : {}),
     ...(published ? { datePublished: published } : {}),
     ...(article.image ? { image: new URL(article.image, `${SITE_URL}/`).href } : {}),

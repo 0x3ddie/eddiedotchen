@@ -4,7 +4,8 @@ import { serialize } from "next-mdx-remote/serialize";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import { Content, MaybeContent } from "./mdx";
+import { bodyOf, Content, MaybeContent } from "./mdx";
+import { isPlaceholder } from "./site";
 
 export interface Chapter {
   slug: string;
@@ -53,5 +54,6 @@ export async function getChapter(slug: string): Promise<MaybeContent<Chapter>> {
   return {
     metadata: source.frontmatter as unknown as Chapter,
     source: source.compiledSource,
+    placeholder: isPlaceholder(bodyOf(content)),
   };
 }

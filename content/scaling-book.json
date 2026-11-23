@@ -1,0 +1,41 @@
+{
+  "title": "Scaling Book — Notes & Solutions",
+  "description": "My chapter-by-chapter notes and worked problems on the Scaling Book. Synced from my notes vault.",
+  "intro": [
+    {
+      "text": "Working through the "
+    },
+    {
+      "text": "Scaling Book",
+      "href": "https://jax-ml.github.io/scaling-book/"
+    },
+    {
+      "text": ". Each chapter below collects my depth notes alongside worked solutions to the chapter problems. Source lives in my "
+    },
+    {
+      "text": "notes vault",
+      "href": "https://github.com/0x3ddie/notes/tree/main/One/Scaling%20Book"
+    },
+    {
+      "text": " and is auto-synced here on push."
+    }
+  ],
+  "book": {
+    "name": "Scaling Book",
+    "url": "https://jax-ml.github.io/scaling-book/"
+  },
+  "officialTitles": {
+    "1": "A Brief Intro to Roofline Analysis",
+    "2": "How to Think About TPUs",
+    "3": "Sharded Matrices and How to Multiply Them",
+    "4": "All the Transformer Math You Need to Know",
+    "5": "How to Parallelize a Transformer for Training",
+    "6": "Training LLaMA 3 on TPUs",
+    "7": "All About Transformer Inference",
+    "8": "Serving LLaMA 3 on TPUs",
+    "9": "How to Profile TPU Code",
+    "10": "Programming TPUs in JAX",
+    "11": "Conclusions and Further Reading",
+    "12": "How to Think About GPUs"
+  }
+}

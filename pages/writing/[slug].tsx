@@ -18,16 +18,19 @@ const Post: NextPageWithLayout<PostProps> = ({ post }) => {
   const router = useRouter();
   return (
     <>
-      <JsonLd
-        id="article-jsonld"
-        data={articleJsonLd({
-          path: pagePath(router.asPath),
-          title: post.metadata.title,
-          description: post.metadata.description,
-          date: post.metadata.date,
-          image: post.metadata.image,
-        })}
-      />
+      {/* No structured data for a post that is still a placeholder. */}
+      {!post.placeholder && (
+        <JsonLd
+          id="article-jsonld"
+          data={articleJsonLd({
+            path: pagePath(router.asPath),
+            title: post.metadata.title,
+            description: post.metadata.description,
+            date: post.metadata.date,
+            image: post.metadata.image,
+          })}
+        />
+      )}
       <NextSeo
         title={post.metadata.title}
         description={post.metadata.description}

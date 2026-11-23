@@ -14,6 +14,7 @@ import { Content } from "../../../lib/mdx";
 import { NextSeo } from "next-seo";
 import { JsonLd } from "../../../components/JsonLd";
 import { articleJsonLd } from "../../../lib/site";
+import scalingBook from "../../../content/scaling-book.json";
 
 interface ChapterProps {
   chapter: Content<Chapter>;
@@ -25,15 +26,19 @@ const ChapterPage: NextPageWithLayout<ChapterProps> = ({ chapter, prev, next }) 
   const { metadata, source } = chapter;
   return (
     <>
-      <JsonLd
-        id="article-jsonld"
-        data={articleJsonLd({
-          path: `/writing/scaling-book/${metadata.slug}`,
-          title: metadata.title,
-          description: metadata.description,
-          date: metadata.date,
-        })}
-      />
+      {/* No structured data for a chapter that is still empty. */}
+      {!chapter.placeholder && (
+        <JsonLd
+          id="article-jsonld"
+          data={articleJsonLd({
+            path: `/writing/scaling-book/${metadata.slug}`,
+            title: metadata.title,
+            description: metadata.description,
+            date: metadata.date,
+            notesOn: scalingBook.book,
+          })}
+        />
+      )}
       <NextSeo
         title={`${metadata.title} | Scaling Book | Eddie Chen`}
         description={metadata.description || metadata.title}

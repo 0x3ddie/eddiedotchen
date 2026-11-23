@@ -11,14 +11,14 @@ import type { NextPageWithLayout } from "next";
 import Layout from "../../../components/Layout";
 import { Chapter, getChapterManifest } from "../../../lib/scaling-book";
 import { NextSeo } from "next-seo";
-import officialTitles from "../../../content/scaling-book-titles.json";
+import scalingBook from "../../../content/scaling-book.json";
 
-// Official Scaling Book chapter titles, verbatim from
-// https://jax-ml.github.io/scaling-book/ (table of contents).
-// We display the listing using these so the index matches the book.
-// The detail page still uses the user's own frontmatter title.
-// They live in content/ so the Markdown twin of this page lists the same titles.
-const OFFICIAL_TITLES: Record<string, string> = officialTitles;
+// The page's title, description, intro and the official chapter titles live in
+// content/scaling-book.json, which the Markdown twin of this page reads too.
+// Official titles are verbatim from https://jax-ml.github.io/scaling-book/
+// (table of contents), so the index matches the book; the chapter pages keep
+// their own frontmatter titles.
+const OFFICIAL_TITLES: Record<string, string> = scalingBook.officialTitles;
 
 interface ScalingBookProps {
   chapters: Chapter[];
@@ -28,30 +28,21 @@ const ScalingBook: NextPageWithLayout<ScalingBookProps> = ({ chapters }) => {
   return (
     <>
       <NextSeo
-        title="Scaling Book — Notes & Solutions | Eddie Chen"
-        description="My chapter-by-chapter notes and worked problems on the Scaling Book. Synced from my notes vault."
+        title={`${scalingBook.title} | Eddie Chen`}
+        description={scalingBook.description}
       />
       <Flex direction="column" align="flex-start" gap={4}>
-        <Heading size="lg">Scaling Book — Notes & Solutions</Heading>
+        <Heading size="lg">{scalingBook.title}</Heading>
         <Text my={0}>
-          Working through the{" "}
-          <ChakraLink
-            href="https://jax-ml.github.io/scaling-book/"
-            isExternal
-            color="blue.500"
-          >
-            Scaling Book
-          </ChakraLink>
-          . Each chapter below collects my depth notes alongside worked
-          solutions to the chapter problems. Source lives in my{" "}
-          <ChakraLink
-            href="https://github.com/0x3ddie/notes/tree/main/One/Scaling%20Book"
-            isExternal
-            color="blue.500"
-          >
-            notes vault
-          </ChakraLink>{" "}
-          and is auto-synced here on push.
+          {scalingBook.intro.map((part, i) =>
+            "href" in part && part.href ? (
+              <ChakraLink key={i} href={part.href} isExternal color="blue.500">
+                {part.text}
+              </ChakraLink>
+            ) : (
+              <span key={i}>{part.text}</span>
+            )
+          )}
         </Text>
 
         {chapters.length === 0 ? (

@@ -69,29 +69,38 @@ export function isoDate(value) {
 // ---------------------------------------------------------------------------
 //
 // The source is parsed with the same parser the page is compiled with
-// (next-mdx-remote with remark-gfm, plus remark-math for chapters), and only
-// what the page does not show is cut out of the source text. Everything else is
-// kept exactly as the author wrote it:
+// (next-mdx-remote; remark-gfm where the page uses it; remark-math for
+// chapters), and only what the page does not show is cut out of the source
+// text. Everything else is kept exactly as the author wrote it:
 //   - `{...}` expressions, imports and exports are removed: next-mdx-remote
 //     deletes expressions, and `{/* ... */}` comments render nothing anywhere.
+//     This applies inside JSX too, at any depth.
 //   - in plain-Markdown pages (format "md"), raw HTML is removed, because the
 //     page drops it too (inline tags lose their tags, HTML blocks vanish).
-//   - in MDX pages, presentational JSX (<span style={...}>, <sub>, <strong>)
-//     loses its tags and keeps its text; <br/>, <a href> and <img> become their
-//     Markdown equivalents; <video>, <audio> and <iframe> become a labelled link.
-//     Any other component is left as written and reported.
+//   - in MDX pages, HTML elements keep their text and lose their tags (block
+//     elements become their own lines, headings and list items keep their
+//     Markdown form); <sup> and <sub> stay as HTML so 10<sup>14</sup> is not
+//     flattened to 1014; <br/>, <a href> and <img> become their Markdown
+//     equivalents; <video>, <audio> and <iframe> become a labelled link.
+//     A component (a capitalised name) cannot be mirrored and is an error.
 //   - site-relative link and image URLs become absolute.
 // Code, inline code and math are copied verbatim, never rewritten.
 
-const WRAPPER_TAGS = new Set([
-  "span", "div", "p", "section", "small", "sup", "sub", "em", "strong", "b", "i", "u",
-  "s", "del", "mark", "abbr", "cite", "q", "center",
+const INLINE_TAGS = new Set([
+  "span", "small", "em", "strong", "b", "i", "u", "s", "del", "ins", "mark", "abbr", "cite",
+  "q", "kbd", "code", "samp", "var", "time", "dfn", "bdi", "bdo", "data", "label", "font",
+]);
+const KEEP_AS_HTML = new Set(["sup", "sub"]);
+const BLOCK_TAGS = new Set([
+  "div", "p", "section", "article", "aside", "header", "footer", "main", "nav", "address",
+  "figure", "figcaption", "details", "summary", "blockquote", "center", "pre",
+  "table", "thead", "tbody", "tfoot", "tr", "th", "td", "caption", "ul", "ol", "dl", "dt", "dd",
 ]);
 const VERBATIM = new Set(["code", "inlineCode", "math", "inlineMath"]);
 const REMOVED = new Set(["mdxjsEsm", "mdxFlowExpression", "mdxTextExpression", "html"]);
 
-/** JSX the conversion left as written, reported by the generator. */
-export const conversionWarnings = [];
+/** Things a twin cannot mirror. The generator stops a build on them and warns under --dev. */
+export const conversionProblems = [];
 
 let mdxTools = null;
 async function loadMdxTools() {
@@ -108,6 +117,17 @@ async function loadMdxTools() {
 
 const isSiteRelative = (url) => typeof url === "string" && url.startsWith("/") && !url.startsWith("//");
 const absUrl = (url) => (isSiteRelative(url) ? SITE_URL + url : url);
+
+/**
+ * Text from frontmatter or JSON placed into Markdown: characters Markdown would
+ * read as syntax are escaped, so a title like "On <think> tags" stays text.
+ */
+export function mdText(value) {
+  return String(value ?? "")
+    .replace(/[\\`*[\]<]/g, "\\$&")
+    .replace(/&(?=#?\w+;)/g, "\\&")
+    .replace(/(^|\W)_|_(?=\W|$)/g, (m) => m.replace("_", "\\_"));
+}
 
 // Media a page shows with no text of its own. A twin names each one in a link,
 // "[Video: wood-4x.mp4](url)", and the verifier reads the same label from the
@@ -138,7 +158,7 @@ const jsxAttribute = (node, name) => {
 function planEdits(tree, source) {
   const edits = []; // { start, end, text }; an insertion has start === end
   const verbatim = []; // { start, end }
-  const leftovers = [];
+  const components = [];
 
   // Offset where a link's or image's destination starts, if it is written inline.
   const destinationOffset = (node, start, end) => {
@@ -155,68 +175,96 @@ function planEdits(tree, source) {
     return m ? start + m[0].length : null;
   };
 
-  // JSX: keep what the page shows, in Markdown form. Returns false to leave it as written.
-  const convertJsx = (node, start, end) => {
-    const name = String(node.name || "").toLowerCase();
-    const children = node.children || [];
-    const first = children[0] && children[0].position;
-    const last = children.length && children[children.length - 1].position;
-    const openEnd = first ? first.start.offset : end;
-    const closeStart = last ? last.end.offset : end;
+  // The indentation of the line a child starts on, so a converted block keeps
+  // its place inside a list item.
+  const indentBefore = (offset) => {
+    const lineStart = source.lastIndexOf("\n", offset - 1) + 1;
+    const lead = /^[ \t]*/.exec(source.slice(lineStart, offset))[0];
+    return lead.length === offset - lineStart ? lead : "";
+  };
 
-    if (name === "br") {
-      edits.push({ start, end, text: "  \n" });
-      return true;
+  // Replace an element's opening and closing tags, keep and walk its children.
+  const replaceTags = (node, start, end, open, close) => {
+    const children = node.children || [];
+    if (!children.length || !children[0].position) {
+      edits.push({ start, end, text: open + close });
+      return;
     }
+    const first = children[0].position.start.offset;
+    const last = children[children.length - 1].position.end.offset;
+    edits.push({ start, end: first, text: open });
+    edits.push({ start: last, end, text: close });
+    const name = String(node.name || "").toLowerCase();
+    children.forEach((child) => walk(child, name));
+  };
+
+  // JSX: keep what the page shows, in Markdown form.
+  const convertJsx = (node, start, end, parentName) => {
+    const rawName = String(node.name || "");
+    const name = rawName.toLowerCase();
+    const children = node.children || [];
+    const firstChild = children[0] && children[0].position;
+    const indent = firstChild ? indentBefore(firstChild.start.offset) : "";
+
+    if (!rawName || /^[A-Z]/.test(rawName) || rawName.includes(".")) {
+      // A component: its output is not knowable here. Keep the tags, still
+      // remove comments and expressions inside, and report it.
+      components.push(`<${rawName || "fragment"}>`);
+      if (firstChild) {
+        const first = firstChild.start.offset;
+        const last = children[children.length - 1].position.end.offset;
+        verbatim.push({ start, end: first });
+        verbatim.push({ start: last, end });
+        children.forEach((child) => walk(child, ""));
+      } else {
+        verbatim.push({ start, end });
+      }
+      return;
+    }
+    if (name === "br") return edits.push({ start, end, text: "  \n" });
+    if (name === "hr") return edits.push({ start, end, text: "\n\n---\n\n" });
     if (name === "img") {
       const src = jsxAttribute(node, "src");
-      if (src === null) return false;
+      if (src === null) return edits.push({ start, end, text: "" });
       const alt = (jsxAttribute(node, "alt") || "").replace(/[\[\]]/g, "");
-      edits.push({ start, end, text: `![${alt}](${absUrl(src)})` });
-      return true;
+      return edits.push({ start, end, text: `![${alt}](${absUrl(src)})` });
     }
     if (MEDIA_KINDS[name]) {
       let src = jsxAttribute(node, "src");
       if (src === null) {
-        const source = children.find(
-          (c) => /^mdxJsx/.test(c.type) && String(c.name || "").toLowerCase() === "source"
-        );
-        if (source) src = jsxAttribute(source, "src");
+        const sourceEl = children.find((c) => /^mdxJsx/.test(c.type) && String(c.name || "").toLowerCase() === "source");
+        if (sourceEl) src = jsxAttribute(sourceEl, "src");
       }
-      if (src === null) return false;
       const label = mediaLabel({
         title: jsxAttribute(node, "title"),
         ariaLabel: jsxAttribute(node, "aria-label"),
         src,
       });
-      edits.push({ start, end, text: `[${MEDIA_KINDS[name]}: ${label}](${absUrl(src)})` });
-      return true;
+      // The fallback text inside a media element is not shown by browsers that play it.
+      return edits.push({ start, end, text: src === null ? "" : `[${MEDIA_KINDS[name]}: ${label}](${absUrl(src)})` });
     }
     if (name === "a") {
       const href = jsxAttribute(node, "href");
-      if (href === null || !first) return false;
-      edits.push({ start, end: openEnd, text: "[" });
-      edits.push({ start: closeStart, end, text: `](${absUrl(href)})` });
-      children.forEach(walk);
-      return true;
+      if (href === null || !firstChild) return replaceTags(node, start, end, "", "");
+      return replaceTags(node, start, end, "[", `](${absUrl(href)})`);
     }
-    if (WRAPPER_TAGS.has(name)) {
-      if (!first) {
-        edits.push({ start, end, text: "" });
-        return true;
-      }
-      edits.push({ start, end: openEnd, text: "" });
-      edits.push({ start: closeStart, end, text: "" });
-      children.forEach(walk);
-      return true;
+    if (KEEP_AS_HTML.has(name)) return replaceTags(node, start, end, `<${name}>`, `</${name}>`);
+    if (name === "code") return replaceTags(node, start, end, "`", "`");
+    const heading = /^h([1-6])$/.exec(name);
+    if (heading) return replaceTags(node, start, end, `\n\n${indent}${"#".repeat(Number(heading[1]))} `, "\n\n");
+    if (name === "li") {
+      const marker = parentName === "ol" ? "1. " : "- ";
+      return replaceTags(node, start, end, `\n${indent}${marker}`, "\n");
     }
-    return false;
+    if (BLOCK_TAGS.has(name)) return replaceTags(node, start, end, `\n\n${indent}`, "\n\n");
+    // Any other HTML element (INLINE_TAGS and the rest): text without tags.
+    return replaceTags(node, start, end, "", "");
   };
 
-  const walk = (node) => {
+  const walk = (node, parentName = "") => {
     const pos = node.position;
     if (!pos || pos.start.offset == null) {
-      (node.children || []).forEach(walk);
+      (node.children || []).forEach((c) => walk(c, parentName));
       return;
     }
     const start = pos.start.offset;
@@ -231,20 +279,18 @@ function planEdits(tree, source) {
       return;
     }
     if (node.type === "mdxJsxFlowElement" || node.type === "mdxJsxTextElement") {
-      if (!convertJsx(node, start, end)) {
-        leftovers.push(source.slice(start, Math.min(end, start + 60)));
-        verbatim.push({ start, end });
-      }
+      convertJsx(node, start, end, parentName);
       return;
     }
     if ((node.type === "link" || node.type === "image" || node.type === "definition") && isSiteRelative(node.url)) {
       const at = destinationOffset(node, start, end);
       if (at !== null && source[at] === "/") edits.push({ start: at, end: at, text: SITE_URL });
     }
-    (node.children || []).forEach(walk);
+    // A Markdown paragraph inside <ol>/<ul> still belongs to that list.
+    (node.children || []).forEach((c) => walk(c, node.type === "paragraph" ? parentName : ""));
   };
   walk(tree);
-  return { edits, verbatim, leftovers };
+  return { edits, verbatim, components };
 }
 
 function applyEdits(source, { edits, verbatim }) {
@@ -265,39 +311,48 @@ function applyEdits(source, { edits, verbatim }) {
   pieces.push({ text: source.slice(cursor), keep: false });
 
   // Blank lines left by removed nodes collapse, but never inside code or math.
+  const tidy = (text) => text.replace(/^[ \t]+$/gm, "").replace(/\n{3,}/g, "\n\n");
   let out = "";
   let prose = "";
   for (const piece of pieces) {
     if (piece.keep) {
-      out += prose.replace(/\n{3,}/g, "\n\n") + piece.text;
+      out += tidy(prose) + piece.text;
       prose = "";
     } else {
       prose += piece.text;
     }
   }
-  return (out + prose.replace(/\n{3,}/g, "\n\n")).trim();
+  return (out + tidy(prose)).trim();
 }
 
 /**
  * Markdown for a page body, as the page renders it.
  *   format: "mdx" (posts, book notes, the home page) or "md" (chapters, resume)
+ *   gfm:    parse GitHub-flavoured Markdown, as every page except the home page
+ *           and the reading-list summaries does
  *   math:   parse $...$ as math, as the Scaling Book pages do
  */
-export async function mdxToMarkdown(source, { format = "mdx", math = false, label = "" } = {}) {
+export async function mdxToMarkdown(source, { format = "mdx", gfm = true, math = false, label = "" } = {}) {
   const { serialize, remarkGfm, remarkMath } = await loadMdxTools();
   let plan = null;
   const capture = () => (tree) => {
     plan = planEdits(tree, source);
   };
-  await serialize(source, {
-    mdxOptions: {
-      format,
-      development: false,
-      remarkPlugins: [remarkGfm, ...(math ? [remarkMath] : []), capture],
-    },
-  });
-  if (!plan) throw new Error(`could not parse ${label || "a page"} for its Markdown twin`);
-  for (const jsx of plan.leftovers) conversionWarnings.push(`${label}: JSX left as written: ${jsx}`);
+  try {
+    await serialize(source, {
+      mdxOptions: {
+        format,
+        development: false,
+        remarkPlugins: [...(gfm ? [remarkGfm] : []), ...(math ? [remarkMath] : []), capture],
+      },
+    });
+  } catch (error) {
+    throw new Error(`${label || "a page"}: ${String(error.message).split("\n").slice(0, 3).join(" ")}`);
+  }
+  if (!plan) throw new Error(`${label || "a page"}: could not be parsed for its Markdown twin`);
+  for (const tag of plan.components) {
+    conversionProblems.push(`${label}: the component ${tag} cannot be mirrored in Markdown; use plain Markdown or HTML elements`);
+  }
   return applyEdits(source, plan);
 }
 
@@ -315,6 +370,7 @@ function makeDoc(doc) {
   return {
     description: "",
     date: "",
+    gfm: true,
     ...doc,
     body,
     md: twinPath(doc.url),
@@ -335,7 +391,9 @@ async function homeDoc() {
     description: site.description,
     source: HOME_SOURCE.join("/"),
     ownHeading: true,
-    body: await mdxToMarkdown(read(...HOME_SOURCE), { label: HOME_SOURCE.join("/") }),
+    // @next/mdx compiles the home page without remark-gfm (next.config.js).
+    gfm: false,
+    body: await mdxToMarkdown(read(...HOME_SOURCE), { gfm: false, label: HOME_SOURCE.join("/") }),
   });
 }
 
@@ -390,13 +448,26 @@ export function compareByRating(a, b) {
   return rb - ra;
 }
 
-/** Slugs of posts marked `hidden: true`. Read from the files, not the index. */
+/**
+ * Slugs of posts marked `hidden: true`. Read from the files, not the index.
+ * A near miss (`hidden: "true"`, `Hidden: true`, `draft: true`) would publish
+ * the post while its author thinks it is hidden, so it is reported.
+ */
 export function hiddenPostSlugs() {
-  return fs
-    .readdirSync(file("content", "writing"))
-    .filter((name) => name.endsWith(".mdx"))
-    .filter((name) => matter(read("content", "writing", name)).data.hidden === true)
-    .map((name) => name.replace(/\.mdx$/, ""));
+  const hidden = [];
+  for (const name of fs.readdirSync(file("content", "writing")).filter((n) => n.endsWith(".mdx"))) {
+    const { data } = matter(read("content", "writing", name));
+    for (const [key, value] of Object.entries(data)) {
+      const lower = key.toLowerCase();
+      if ((lower === "hidden" && (key !== "hidden" || typeof value !== "boolean")) || lower === "draft" || lower === "published") {
+        conversionProblems.push(
+          `content/writing/${name}: \`${key}: ${JSON.stringify(value)}\` does not hide a post; only \`hidden: true\` does`
+        );
+      }
+    }
+    if (data.hidden === true) hidden.push(name.replace(/\.mdx$/, ""));
+  }
+  return hidden;
 }
 
 async function writingDocs() {
@@ -408,7 +479,7 @@ async function writingDocs() {
   for (const entry of index) {
     const slug = entry.external ? null : entry.url.replace(/^\/writing\//, "");
     if (slug && hidden.has(slug)) continue;
-    lines.push(`- [${entry.title}](${abs(entry.url)}) — ${entry.date}`);
+    lines.push(`- [${mdText(entry.title)}](${abs(entry.url)}) — ${mdText(entry.date)}`);
     if (!slug || !exists("content", "writing", `${slug}.mdx`)) continue;
 
     // Title, description and date come from the index, which is what the
@@ -440,10 +511,12 @@ async function writingDocs() {
   return { listing, posts };
 }
 
+export const scalingBook = readJson("content", "scaling-book.json");
+
 async function scalingBookDocs() {
   const manifestPath = ["content", "writing", "scaling-book", "index.json"];
   const manifest = exists(...manifestPath) ? readJson(...manifestPath) : [];
-  const officialTitles = readJson("content", "scaling-book-titles.json");
+  const officialTitles = scalingBook.officialTitles;
   const bookUrl = "/writing/scaling-book";
 
   const chapters = [];
@@ -452,11 +525,12 @@ async function scalingBookDocs() {
     const prev = manifest[i - 1];
     const next = manifest[i + 1];
     const nav = [
-      prev && `← [${prev.title}](${abs(`${bookUrl}/${prev.slug}`)})`,
-      next && `[${next.title}](${abs(`${bookUrl}/${next.slug}`)}) →`,
+      prev && `← [${mdText(prev.title)}](${abs(`${bookUrl}/${prev.slug}`)})`,
+      next && `[${mdText(next.title)}](${abs(`${bookUrl}/${next.slug}`)}) →`,
     ].filter(Boolean);
     const source = `content/writing/scaling-book/${entry.slug}.mdx`;
-    chapters.push(makeDoc({
+    chapters.push(
+      makeDoc({
         kind: "chapter",
         url: `${bookUrl}/${entry.slug}`,
         title: entry.title,
@@ -464,32 +538,30 @@ async function scalingBookDocs() {
         date: entry.date || "",
         order: entry.order,
         listTitle: `Chapter ${entry.order}: ${officialTitles[entry.order] ?? entry.title}`,
-        source: `0x3ddie/notes: One/Scaling Book (synced to content/writing/scaling-book/${entry.slug}.mdx)`,
-        intro: `[Scaling Book](${abs(bookUrl)})`,
+        source: `0x3ddie/notes: One/Scaling Book (synced to ${source})`,
+        intro: `[${mdText(scalingBook.book.name)}](${abs(bookUrl)})`,
         outro: nav.join(" · "),
         body: await mdxToMarkdown(content, { format: "md", math: true, label: source }),
-      }));
+      })
+    );
   }
 
-  const intro =
-    "Working through the [Scaling Book](https://jax-ml.github.io/scaling-book/). " +
-    "Each chapter below collects my depth notes alongside worked solutions to the chapter problems. " +
-    "Source lives in my [notes vault](https://github.com/0x3ddie/notes/tree/main/One/Scaling%20Book) " +
-    "and is auto-synced here on push.";
+  const intro = scalingBook.intro
+    .map((part) => (part.href ? `[${mdText(part.text)}](${part.href})` : mdText(part.text)))
+    .join("");
   const list = chapters.length
     ? chapters
-        .map((c) => `## [${c.listTitle}](${abs(c.url)})${c.description ? `\n\n${c.description}` : ""}`)
+        .map((c) => `## [${mdText(c.listTitle)}](${abs(c.url)})${c.description ? `\n\n${mdText(c.description)}` : ""}`)
         .join("\n\n")
     : "No chapters published yet — check back soon.";
 
   const listing = makeDoc({
     kind: "scaling-book-index",
     url: bookUrl,
-    title: "Scaling Book — Notes & Solutions",
-    description:
-      "My chapter-by-chapter notes and worked problems on the Scaling Book. Synced from my notes vault.",
+    title: scalingBook.title,
+    description: scalingBook.description,
     listing: true,
-    source: "content/writing/scaling-book/index.json",
+    source: "content/scaling-book.json and content/writing/scaling-book/index.json",
     body: `${intro}\n\n${list}`,
   });
   return { listing, chapters };
@@ -503,34 +575,39 @@ async function readingDocs() {
     const { content } = matter(read("content", "books", `${slug}.mdx`));
     const byline = bookByline(entry);
     const source = `content/books/${slug}.mdx`;
-    books.push(makeDoc({
-      kind: "book",
-      url: entry.slug,
-      title: entry.title,
-      author: entry.author,
-      rating: ratingOf(entry),
-      description: byline,
-      date: entry.date,
-      source,
-      intro: byline,
-      // The index page shows everything above "## My Notes", like the site does.
-      summary: await mdxToMarkdown(content.split("## My Notes")[0], { label: source }),
-      body: await mdxToMarkdown(content, { label: source }),
-    }));
+    books.push(
+      makeDoc({
+        kind: "book",
+        url: entry.slug,
+        title: entry.title,
+        author: entry.author,
+        rating: ratingOf(entry),
+        description: byline,
+        date: entry.date,
+        source,
+        intro: mdText(byline),
+        // The reading list shows everything above "## My Notes", compiled
+        // without remark-gfm (scripts/generate-content.mjs), like the site does.
+        summary: await mdxToMarkdown(content.split("## My Notes")[0], { gfm: false, label: source }),
+        body: await mdxToMarkdown(content, { label: source }),
+      })
+    );
   }
 
-  // Same order as the page: highest rating first, ties in index order.
+  // Same order as the page: highest rating first, unrated last, ties in index order.
   const byRating = books.slice().sort(compareByRating);
   const listing = makeDoc({
     kind: "reading-index",
     url: "/reading",
     title: "Reading",
     listing: true,
+    gfm: false,
     source: "content/books/index.json",
     body: byRating
-      .map(
-        (b) =>
-          [`## [${b.title}](${abs(b.url)})`, b.author, bookListLine(b), b.summary].filter(Boolean).join("\n\n")
+      .map((b) =>
+        [`## [${mdText(b.title)}](${abs(b.url)})`, mdText(b.author), mdText(bookListLine(b)), b.summary]
+          .filter(Boolean)
+          .join("\n\n")
       )
       .join("\n\n"),
   });
@@ -554,9 +631,9 @@ function projectsDoc() {
   const body = sections
     .map(
       ({ label, builds: list }) =>
-        `## ${label}\n\n` +
+        `## ${mdText(label)}\n\n` +
         list
-          .map((b) => `### ${b.url ? `[${b.title}](${abs(b.url)})` : b.title}\n\n${b.description}`)
+          .map((b) => `### ${b.url ? `[${mdText(b.title)}](${abs(b.url)})` : mdText(b.title)}\n\n${mdText(b.description)}`)
           .join("\n\n")
     )
     .join("\n\n");
@@ -613,37 +690,61 @@ export async function loadSite() {
 
 const yamlString = (value) => JSON.stringify(String(value));
 
-/** The Markdown twin of one page: a short header, then what the page says. */
+/**
+ * The Markdown twin of one page: a short header, then what the page says.
+ * The header says whose words these are: Eddie's own pages name him as the
+ * author; book notes and Scaling Book chapters name him as the note-taker and
+ * name the book, so nothing reads as him having written someone else's book.
+ */
 export function renderTwin(doc) {
-  const front = [
-    "---",
-    `title: ${yamlString(doc.title)}`,
-    doc.description && `description: ${yamlString(doc.description)}`,
-    `author: ${yamlString(site.name)}`,
-    doc.dateIso && `date: ${doc.dateIso}`,
-    `url: ${abs(doc.url)}`,
-    "---",
-  ].filter(Boolean);
+  const fields = [["title", yamlString(doc.title)]];
+  if (doc.description) fields.push(["description", yamlString(doc.description)]);
+  if (doc.kind === "book") {
+    fields.push(["book_author", yamlString(doc.author)]);
+    fields.push(["notes_by", yamlString(site.name)]);
+    if (doc.dateIso) fields.push(["date_read", doc.dateIso]);
+    if (doc.rating !== null && doc.rating !== undefined) fields.push(["rating", `${doc.rating}/10`]);
+  } else if (doc.kind === "chapter") {
+    fields.push(["notes_by", yamlString(site.name)]);
+    fields.push(["notes_on", yamlString(scalingBook.book.name)]);
+    fields.push(["based_on", scalingBook.book.url]);
+    if (doc.dateIso) fields.push(["date", doc.dateIso]);
+  } else {
+    fields.push(["author", yamlString(site.name)]);
+    if (doc.dateIso) fields.push(["date", doc.dateIso]);
+  }
+  fields.push(["url", abs(doc.url)]);
+  const front = ["---", ...fields.map(([k, v]) => `${k}: ${v}`), "---"].join("\n");
 
-  const parts = [front.join("\n")];
-  if (!doc.ownHeading) parts.push(`# ${doc.title}`);
+  const parts = [front];
+  if (!doc.ownHeading) parts.push(`# ${mdText(doc.title)}`);
   if (doc.intro) parts.push(doc.intro);
   if (doc.body) parts.push(doc.body);
   if (doc.outro) parts.push(doc.outro);
   return parts.join("\n\n") + "\n";
 }
 
-/** The same document as a section of llms-full.txt. */
-export function renderSection(doc) {
-  const heading = doc.ownHeading ? null : `# ${doc.title}`;
-  const meta = [`Source: ${abs(doc.url)}`, doc.date && `Date: ${doc.date}`]
-    .filter(Boolean)
-    .join("\n");
-  let body = doc.body;
-  if (doc.ownHeading) {
-    // Keep the page's own H1 first, then the source line.
-    const [first, ...rest] = body.split("\n");
-    return [first, meta, rest.join("\n").trim()].filter(Boolean).join("\n\n");
-  }
-  return [heading, meta, doc.intro, body, doc.outro].filter(Boolean).join("\n\n");
+/** A twin without its frontmatter block. */
+export function twinBody(twinText) {
+  return twinText.replace(/^---\n[\s\S]*?\n---\n+/, "");
 }
+
+/** The opening of llms-full.txt. */
+export function llmsFullHeader() {
+  return [
+    `# ${mdText(site.name)} — full site content`,
+    `> ${mdText(site.description)}`,
+    `Every page of ${SITE_URL} with real content, in one file: each section is that page's Markdown twin, preceded by its address. Index: ${abs("/llms.txt")}`,
+  ].join("\n\n");
+}
+
+/**
+ * One section of llms-full.txt: the page's twin, exactly, after a line naming
+ * the page. The verifier rebuilds the file from the twins and compares.
+ */
+export function llmsFullSection(page, twinText) {
+  const meta = [`Source: ${abs(page.url)}`, page.date && `Date: ${page.date}`].filter(Boolean).join("\n");
+  return `${meta}\n\n${twinBody(twinText).trim()}`;
+}
+
+export const LLMS_FULL_SEPARATOR = "\n\n---\n\n";

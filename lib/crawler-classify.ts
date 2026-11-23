@@ -6,6 +6,7 @@ export interface CrawlerEntry {
   token: string | null;
   operator: string;
   category: string;
+  ipRanges?: string | null;
 }
 
 export interface RequestFacts {
@@ -18,15 +19,32 @@ export interface Classification {
   bot: string;
   operator: string;
   category: string;
-  /** In lib/ai-crawlers.json: its address is worth checking against the operator's list. */
-  registered: boolean;
   reasons: string[];
+  /** The operator publishes address ranges, so the address can be checked against them. */
+  keepAddress: boolean;
+  /** Could be a person's own device: keep no referrer and only a coarse user agent. */
+  mayBePerson: boolean;
+  /** The user agent to record: in full for declared bots, coarse otherwise. */
+  ua: string;
 }
 
 // Self-declared automation that is not in the registry. Written so ordinary
-// browsers, in-app browsers and phone models (CUBOT) do not match.
+// browsers, in-app browsers and phone models (CUBOT NOTE, ROBOT_X) do not match.
 const GENERIC_BOT =
-  /bot(?:[\/\-;)_]|$)|\bbot\b|telegrambot|crawl|spider|scrap|slurp|headless|python|\bcurl\/|wget|go-http-client|axios|okhttp|java\/|libwww|httpclient|node-fetch|undici|\bnode(?:\.js)?\/|ruby|php\//i;
+  /bot[\/\-;]|\Wbot[)_]|\bbot\b|bot$|telegrambot|twitterbot|crawl|spider|scrap|slurp|headless|python|\bcurl\/|wget|go-http-client|axios|okhttp|java\/|libwww|httpclient|node-fetch|undici|\bnode(?:\.js)?\/|ruby|php\//i;
+
+// Apple's link previews (iMessage, Mail) fetch from the person's own device
+// with a user agent naming both facebookexternalhit and Twitterbot.
+const APPLE_LINK_PREVIEW = /facebookexternalhit[\s\S]*Twitterbot|Twitterbot[\s\S]*facebookexternalhit/i;
+
+/** Browser family and major version only, e.g. "Chrome/58". */
+function coarseAgent(ua: string): string {
+  const named = /(Edg|OPR|SamsungBrowser|CriOS|FxiOS|Firefox|Chrome|Chromium)\/(\d+)/.exec(ua);
+  if (named) return `${named[1]}/${named[2]}`;
+  const safari = /Version\/(\d+)\S* .*Safari/.exec(ua);
+  if (safari) return `Safari/${safari[1]}`;
+  return ua ? "(other)" : "";
+}
 
 // The pages and machine-readable files worth counting; images and other assets are not.
 const CONTENT_PATH =
@@ -34,9 +52,8 @@ const CONTENT_PATH =
 
 /**
  * Signs that a request calling itself a browser was not sent by one. One sign
- * alone is common in real traffic (old Android WebViews, TVs, privacy tools),
- * so a request is only counted as suspect with two, or with a browser version
- * so old that only hard-coded scraper strings still use it.
+ * alone is common in real traffic (old Android WebViews, TVs, feature phones,
+ * privacy tools), so a request is only counted as suspect with two.
  */
 function browserDoubts(ua: string, header: RequestFacts["header"]): string[] {
   const reasons: string[] = [];
@@ -48,7 +65,7 @@ function browserDoubts(ua: string, header: RequestFacts["header"]): string[] {
   const firefoxMajor = firefox ? Number(firefox[1]) : null;
 
   // Chrome 70 and Firefox 60 are from 2018.
-  if ((chromeMajor !== null && chromeMajor < 70) || (firefoxMajor !== null && firefoxMajor < 60 && !/KAIOS/i.test(ua))) {
+  if ((chromeMajor !== null && chromeMajor < 70) || (firefoxMajor !== null && firefoxMajor < 60)) {
     reasons.push("very-old-browser");
   }
   // Chrome 80+ and Firefox 90+ send Sec-Fetch-Mode on every request.
@@ -70,14 +87,28 @@ export function makeClassifier(crawlers: CrawlerEntry[]) {
 
   return function classify({ ua, path, header }: RequestFacts): Classification | null {
     const lower = ua.toLowerCase();
+    if (APPLE_LINK_PREVIEW.test(ua)) {
+      if (!CONTENT_PATH.test(path)) return null;
+      return {
+        bot: "(link preview)",
+        operator: "",
+        category: "link-preview",
+        reasons: [],
+        keepAddress: false,
+        mayBePerson: true,
+        ua: "(link preview)",
+      };
+    }
     const match = known.find(({ needle }) => lower.includes(needle));
     if (match) {
       return {
         bot: match.crawler.token as string,
         operator: match.crawler.operator,
         category: match.crawler.category,
-        registered: true,
         reasons: [],
+        keepAddress: Boolean(match.crawler.ipRanges),
+        mayBePerson: false,
+        ua: ua.slice(0, 300),
       };
     }
     if (!CONTENT_PATH.test(path)) return null;
@@ -90,8 +121,10 @@ export function makeClassifier(crawlers: CrawlerEntry[]) {
         bot: signatureAgent.replace(/"/g, "").slice(0, 80),
         operator: "",
         category: "signed-agent",
-        registered: false,
         reasons: [],
+        keepAddress: false,
+        mayBePerson: false,
+        ua: ua.slice(0, 300),
       };
     }
     if (ua === "" || GENERIC_BOT.test(ua)) {
@@ -99,18 +132,22 @@ export function makeClassifier(crawlers: CrawlerEntry[]) {
         bot: ua === "" ? "(no user agent)" : ua.split(/[\s/;(]/)[0].slice(0, 40),
         operator: "",
         category: "other-bot",
-        registered: false,
         reasons: [],
+        keepAddress: false,
+        mayBePerson: false,
+        ua: ua.slice(0, 300),
       };
     }
     const reasons = browserDoubts(ua, header);
-    if (reasons.length >= 2 || reasons.includes("very-old-browser")) {
+    if (reasons.length >= 2) {
       return {
         bot: "(browser-like)",
         operator: "",
         category: "suspected-automation",
-        registered: false,
         reasons,
+        keepAddress: false,
+        mayBePerson: true,
+        ua: coarseAgent(ua),
       };
     }
     return null;

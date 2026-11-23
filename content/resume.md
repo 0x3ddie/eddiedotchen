@@ -1,3 +1,11 @@
+---
+# The resume PDF this file was transcribed from. When public/Edward-Chen-Resume.pdf
+# changes, update this file to say what the new PDF says and set the new hash
+# (shasum -a 256 public/Edward-Chen-Resume.pdf); the build fails until both match.
+pdf: /Edward-Chen-Resume.pdf
+pdf_sha256: e775f1b0acb62d9ef0c1dc089e6784ef852ef080b1bc4dbb849fcf3a8422f3bc
+---
+
 # Edward Chen — Resume
 
 San Francisco, California · 925-725-5285 · echen1246@gmail.com

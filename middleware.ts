@@ -7,28 +7,38 @@ import { makeClassifier } from "./lib/crawler-classify";
 // site's content. It never changes a response. Every visitor, bot or human,
 // gets the same bytes; nothing is served by user agent.
 //
-// What is recorded
-//   - requests from the AI crawlers named in lib/ai-crawlers.json
-//   - other self-declared bots, and requests that claim to be a browser but do
-//     not behave like one, when they ask for a content page
-// Ordinary browser visits are not recorded here at all.
+// What is recorded (see lib/crawler-classify.ts for the rules)
+//   - requests from the crawlers named in lib/ai-crawlers.json, with the
+//     client address only when the operator publishes its address ranges, so
+//     the claim can be checked
+//   - other self-declared bots, and requests that claim to be a browser but
+//     show two signs of not being one, when they ask for a content page; for
+//     the latter no address and no referrer are kept, and only the browser
+//     family and major version of the user agent
+// Ordinary browser visits, Next's data and prefetch requests, and assets are
+// not recorded.
 //
 // Where it goes
 //   - one JSON line per request on stdout (Vercel runtime logs)
-//   - the same event to PostHog when NEXT_PUBLIC_POSTHOG_API_KEY is set, which
-//     is what makes it durable. Set AI_CRAWLER_LOG=off to turn all of it off.
+//   - the same event to PostHog when POSTHOG_CRAWLER_KEY is set. This is a
+//     server-only variable, separate from the browser analytics key, so keeping
+//     crawler records never switches on tracking of human visitors.
+// AI_CRAWLER_LOG=off stops the recording after a redeploy; deleting this file
+// takes the middleware out of the request path entirely.
 
 export const config = {
-  // Skip Next's own assets and images; everything else can be a content request.
-  matcher: ["/((?!_next/|.*\\.(?:png|jpe?g|gif|svg|webp|avif|ico|css|js|map|woff2?)$).*)"],
+  // Skip Next's own assets and static media; everything else may be content.
+  matcher: [
+    "/((?!_next/|.*\\.(?:png|jpe?g|gif|svg|webp|avif|ico|css|js|map|woff2?|ttf|otf|mp4|webm|mov|m4v|mp3|m4a|wav|ogg)$).*)",
+  ],
 };
 
 const classify = makeClassifier(crawlers);
 
 async function sendToPostHog(event: Record<string, unknown>) {
-  const key = process.env.NEXT_PUBLIC_POSTHOG_API_KEY;
+  const key = process.env.POSTHOG_CRAWLER_KEY;
   if (!key) return;
-  const host = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
+  const host = process.env.POSTHOG_CRAWLER_HOST || "https://us.i.posthog.com";
   // Give up after three seconds rather than hold the edge function open.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 3000);
@@ -59,6 +69,15 @@ export function middleware(request: NextRequest, event: NextFetchEvent) {
       return NextResponse.next();
     }
     const headers = request.headers;
+    // Next's own data and prefetch requests reach middleware with the page's
+    // path; they are not separate visits.
+    if (
+      headers.get("x-nextjs-data") ||
+      headers.get("purpose") === "prefetch" ||
+      headers.get("next-router-prefetch")
+    ) {
+      return NextResponse.next();
+    }
     const hit = classify({
       ua: headers.get("user-agent") || "",
       path: request.nextUrl.pathname,
@@ -78,7 +97,7 @@ export function middleware(request: NextRequest, event: NextFetchEvent) {
       method: request.method,
       markdown: /\.md$|^\/llms(?:-full)?\.txt$/.test(path) || accept.includes("text/markdown"),
       accept: accept.slice(0, 120),
-      referer: (headers.get("referer") || "").slice(0, 200),
+      referer: hit.mayBePerson ? "" : (headers.get("referer") || "").slice(0, 200),
       country: headers.get("x-vercel-ip-country") || "",
       // TLS fingerprint: stable for one client library whatever user agent it sends.
       ja4: headers.get("x-vercel-ja4-digest") || "",
@@ -87,13 +106,11 @@ export function middleware(request: NextRequest, event: NextFetchEvent) {
       vercelBotStatus: headers.get("x-vercel-bot-status") || "",
       // Agents that sign requests (RFC 9421) name themselves here, whatever their UA says.
       signatureAgent: (headers.get("signature-agent") || "").slice(0, 120),
-      // The address is kept only for crawlers in lib/ai-crawlers.json, so a
-      // claimed GPTBot or ClaudeBot can be checked against the operator's
-      // published ranges. Nobody else's address is recorded.
-      ip: hit.registered
+      // Kept only when the operator publishes address ranges to check it against.
+      ip: hit.keepAddress
         ? (request.ip || headers.get("x-real-ip") || headers.get("x-forwarded-for") || "").split(",")[0].trim()
         : "",
-      ua: (headers.get("user-agent") || "").slice(0, 300),
+      ua: hit.ua,
     };
     console.log(JSON.stringify(record));
     event.waitUntil(sendToPostHog(record).catch(() => {}));

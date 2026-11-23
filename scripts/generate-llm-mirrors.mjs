@@ -21,11 +21,14 @@ import {
   abs,
   loadSite,
   renderTwin,
-  renderSection,
-  conversionWarnings,
+  conversionProblems,
   hiddenPostPattern,
   compareByRating,
   ratingOf,
+  mdText,
+  llmsFullHeader,
+  llmsFullSection,
+  LLMS_FULL_SEPARATOR,
 } from "./lib/site-content.mjs";
 
 const PUBLIC_DIR = path.join(process.cwd(), "public");
@@ -44,7 +47,7 @@ const DEV = process.argv.includes("--dev");
 // --- llms.txt ---------------------------------------------------------------
 
 function llmsTxt({ docs, home, resume, projects, writing, scalingBook, reading }) {
-  const link = (title, url, note) => `- [${title}](${url})${note ? `: ${note}` : ""}`;
+  const link = (title, url, note) => `- [${mdText(title)}](${url})${note ? `: ${mdText(note)}` : ""}`;
   const twin = (doc) => abs(doc.md);
   const dated = (doc) =>
     [doc.description, doc.date && `(${doc.date})`].filter(Boolean).join(" ");
@@ -52,11 +55,12 @@ function llmsTxt({ docs, home, resume, projects, writing, scalingBook, reading }
   const posts = writing.posts.filter((d) => !d.stub);
   const chapters = scalingBook.chapters.filter((d) => !d.stub);
   const contact = [`Email: ${site.email}`, ...site.sameAs].join(" · ");
+  const md = (text) => mdText(text);
 
   const list = (heading, lines) => `## ${heading}\n\n${lines.join("\n")}`;
   const sections = [
-    `# ${site.name}`,
-    `> ${site.description}`,
+    `# ${md(site.name)}`,
+    `> ${md(site.description)}`,
     [
       `This file is a generated index of the public content on ${SITE_URL.replace(/^https?:\/\//, "")}, built from the same sources as the web pages.`,
       "Each page linked below exists as Markdown at its web URL with `.md` appended (the home page is `/index.md`), and the web page returns that Markdown when the request sends `Accept: text/markdown`.",
@@ -75,7 +79,7 @@ function llmsTxt({ docs, home, resume, projects, writing, scalingBook, reading }
       list(
         `Projects: ${label}`,
         builds.map((b) =>
-          b.url ? link(b.title, abs(b.url), b.description) : `- ${b.title}: ${b.description}`
+          b.url ? link(b.title, abs(b.url), b.description) : `- ${md(b.title)}: ${md(b.description)}`
         )
       )
     ),
@@ -121,14 +125,13 @@ function llmsTxt({ docs, home, resume, projects, writing, scalingBook, reading }
   return sections.join("\n\n") + "\n";
 }
 
-function llmsFullTxt({ docs }) {
-  const full = docs.filter((d) => !d.stub);
-  const header = [
-    `# ${site.name} — full site content`,
-    `> ${site.description}`,
-    `Every page of ${SITE_URL} with real content, in one file, generated from the same sources as the web pages. Each section starts with the page it mirrors. Index: ${abs("/llms.txt")}`,
-  ].join("\n\n");
-  return [header, ...full.map(renderSection)].join("\n\n---\n\n") + "\n";
+// Every non-placeholder twin, verbatim, each after a line naming its page.
+// verify-llm-mirrors.mjs rebuilds this from the twin files and compares.
+function llmsFullTxt(docs, twins) {
+  const sections = docs
+    .filter((d) => !d.stub)
+    .map((d) => llmsFullSection({ url: d.url, date: d.dateIso }, twins.get(d.md)));
+  return [llmsFullHeader(), ...sections].join(LLMS_FULL_SEPARATOR) + "\n";
 }
 
 // --- robots.txt and sitemaps ------------------------------------------------
@@ -144,15 +147,14 @@ function robotsTxt() {
     ),
   ];
   return [
-    `# ${SITE_URL.replace(/^https?:\/\//, "")}: everything public here may be crawled, indexed, quoted, and linked.`,
-    `# Markdown versions of every page are listed in ${abs("/llms.txt")}`,
+    "# Generated from lib/ai-crawlers.json by scripts/generate-llm-mirrors.mjs.",
+    `# Markdown versions of the pages are listed in ${abs("/llms.txt")}`,
     "",
     "User-agent: *",
     "Allow: /",
     "",
-    "# Search, AI search, assistant, and training crawlers get the same answer as",
-    "# everyone else. They are named so that the answer is explicit, not implied.",
-    "# The list is lib/ai-crawlers.json, checked against each operator's own docs.",
+    "# The crawlers below, documented by their operators, are named explicitly",
+    "# and get the same rule as every other client.",
     ...tokens.map((token) => `User-agent: ${token}`),
     "Allow: /",
     "",
@@ -213,7 +215,11 @@ async function main() {
 
   const content = await loadSite();
   const { docs, hiddenSlugs } = content;
-  for (const warning of conversionWarnings) log(`WARNING ${warning}`);
+  if (conversionProblems.length) {
+    const list = [...new Set(conversionProblems)].map((p) => `  - ${p}`).join("\n");
+    if (!DEV) throw new Error(`the Markdown twins cannot say what these pages say:\n${list}`);
+    log(`WARNING (a production build stops here):\n${list}`);
+  }
 
   const outputs = new Map();
   for (const doc of docs) {
@@ -221,7 +227,7 @@ async function main() {
     outputs.set(doc.md, renderTwin(doc));
   }
   outputs.set("/llms.txt", llmsTxt(content));
-  outputs.set("/llms-full.txt", llmsFullTxt(content));
+  outputs.set("/llms-full.txt", llmsFullTxt(docs, outputs));
   outputs.set("/robots.txt", robotsTxt());
   outputs.set("/sitemap.xml", sitemap(docs.map((d) => abs(d.url))));
   outputs.set("/sitemap-markdown.xml", sitemap(docs.map((d) => abs(d.md))));
@@ -256,6 +262,7 @@ async function main() {
       description: d.description,
       date: d.dateIso,
       stub: d.stub,
+      gfm: d.gfm,
       source: d.source,
     })),
   };
