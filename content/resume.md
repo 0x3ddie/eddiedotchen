@@ -8,7 +8,7 @@ pdf_sha256: e775f1b0acb62d9ef0c1dc089e6784ef852ef080b1bc4dbb849fcf3a8422f3bc
 
 # Edward Chen — Resume
 
-San Francisco, California · 925-725-5285 · echen1246@gmail.com
+San Francisco, California · echen1246@gmail.com
 GitHub: https://github.com/0x3ddie · Portfolio: https://eddiechen.xyz/
 
 Canonical PDF: https://eddiechen.xyz/Edward-Chen-Resume.pdf

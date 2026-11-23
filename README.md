@@ -126,7 +126,7 @@ The resume PDF (`public/Edward-Chen-Resume.pdf`) is exported from a document out
 1. Update `content/resume.md` so it says what the new PDF says.
 2. Set `pdf_sha256` to the output of `shasum -a 256 public/Edward-Chen-Resume.pdf`.
 
-The build fails while the hash does not match. When the PDF's text can be read, it also fails if either file has a word the other lacks, apart from the Markdown's own headings and link labels.
+The build fails while the hash does not match. When the PDF's text can be read, it also fails if either file has a word the other lacks, apart from the Markdown's own headings and link labels. The Markdown leaves out the phone number on purpose, so it does not reach `/resume.md` or `llms-full.txt`; the check ignores phone numbers.
 
 ### Seeing which crawlers visit
 

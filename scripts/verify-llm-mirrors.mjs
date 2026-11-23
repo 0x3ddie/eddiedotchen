@@ -469,7 +469,10 @@ function checkResume() {
   } catch {
     pdf = null;
   }
-  const pdfWords = pdf ? countTokens(tokens(pdf)) : new Map();
+  // The Markdown resume leaves out the phone number on purpose (Eddie's
+  // decision, 2026-11-23), so phone numbers in the PDF are not compared.
+  const PHONE = /\(?\b\d{3}\)?[-.\s]*\d{3}[-.\s]*\d{4}\b/g;
+  const pdfWords = pdf ? countTokens(tokens(pdf.replace(PHONE, " "))) : new Map();
   if (pdfWords.size === 0) {
     notes.push("resume: the PDF's text could not be read; it is the PDF recorded in content/resume.md, so it was not re-compared");
     resumeStatus = "resume PDF unchanged (text not readable, words not compared)";
