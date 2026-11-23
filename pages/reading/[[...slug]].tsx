@@ -1,4 +1,5 @@
 import {
+  Box,
   Flex,
   Heading,
   Image,
@@ -100,7 +101,10 @@ export default Books;
 Books.getLayout = (page: JSX.Element) => (
   <Layout>
     <Flex direction="column" gap={8}>
-      <Bookshelf books={page.props.books} />
+      {/* The shelf links to every book; it is navigation, not this page's content. */}
+      <Box as="nav" aria-label="Bookshelf">
+        <Bookshelf books={page.props.books} />
+      </Box>
       <Divider />
       {page}
     </Flex>

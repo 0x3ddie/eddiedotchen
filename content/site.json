@@ -1,0 +1,23 @@
+{
+  "name": "Eddie Chen",
+  "alternateName": "Edward Chen",
+  "url": "https://eddiechen.xyz",
+  "description": "Eddie Chen — Data Science and Supply Chain student at Arizona State University. Writes and ships projects across AI/ML, ML systems, transformer inference, on-device AI, and applied software.",
+  "email": "echen1246@gmail.com",
+  "affiliation": "Arizona State University",
+  "twitterHandle": "@ayocheddie",
+  "sameAs": ["https://github.com/0x3ddie", "https://twitter.com/ayocheddie"],
+  "knowsAbout": [
+    "Artificial Intelligence",
+    "Machine Learning",
+    "Deep Learning",
+    "Transformer Inference",
+    "KV Cache Compression",
+    "On-device AI",
+    "ML Systems",
+    "Data Science",
+    "Economics",
+    "Robotics",
+    "Software Engineering"
+  ]
+}

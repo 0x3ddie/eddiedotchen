@@ -12,6 +12,8 @@ import {
 } from "../../../lib/scaling-book";
 import { Content } from "../../../lib/mdx";
 import { NextSeo } from "next-seo";
+import { JsonLd } from "../../../components/JsonLd";
+import { articleJsonLd } from "../../../lib/site";
 
 interface ChapterProps {
   chapter: Content<Chapter>;
@@ -23,10 +25,20 @@ const ChapterPage: NextPageWithLayout<ChapterProps> = ({ chapter, prev, next }) 
   const { metadata, source } = chapter;
   return (
     <>
+      <JsonLd
+        id="article-jsonld"
+        data={articleJsonLd({
+          path: `/writing/scaling-book/${metadata.slug}`,
+          title: metadata.title,
+          description: metadata.description,
+          date: metadata.date,
+        })}
+      />
       <NextSeo
         title={`${metadata.title} | Scaling Book | Eddie Chen`}
         description={metadata.description || metadata.title}
         openGraph={{
+          type: "article",
           title: `${metadata.title} | Scaling Book`,
           description: metadata.description || metadata.title,
         }}

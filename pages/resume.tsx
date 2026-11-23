@@ -3,13 +3,14 @@ import type { NextPageWithLayout } from "next";
 import Layout from "../components/Layout";
 import { NextSeo } from "next-seo";
 import { FiDownload } from "react-icons/fi";
+import { site } from "../lib/site";
 
 const Resume: NextPageWithLayout = () => {
   return (
     <>
       <NextSeo
         title="Resume | Eddie Chen"
-        description="Resume for Eddie Chen — Data Science and Supply Chain student at Arizona State University. Projects across transformer inference, on-device AI, ML systems, and applied software."
+        description={`Resume for ${site.description}`}
       />
       <Flex direction="column" gap={4}>
         <Flex justify="space-between" align="center" wrap="wrap" gap={2}>

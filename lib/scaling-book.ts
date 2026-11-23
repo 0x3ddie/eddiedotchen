@@ -40,6 +40,10 @@ export async function getChapter(slug: string): Promise<MaybeContent<Chapter>> {
   const source = await serialize(content, {
     parseFrontmatter: true,
     mdxOptions: {
+      // Chapters are plain Markdown written in Obsidian, not MDX. As MDX,
+      // `TPU{0, 0}` loses its braces (next-mdx-remote deletes expressions) and
+      // a stray `<` or `{` fails the build.
+      format: "md",
       development: false,
       remarkPlugins: [remarkGfm, remarkMath],
       rehypePlugins: [rehypeKatex],

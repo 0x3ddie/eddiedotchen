@@ -11,25 +11,14 @@ import type { NextPageWithLayout } from "next";
 import Layout from "../../../components/Layout";
 import { Chapter, getChapterManifest } from "../../../lib/scaling-book";
 import { NextSeo } from "next-seo";
+import officialTitles from "../../../content/scaling-book-titles.json";
 
 // Official Scaling Book chapter titles, verbatim from
 // https://jax-ml.github.io/scaling-book/ (table of contents).
 // We display the listing using these so the index matches the book.
 // The detail page still uses the user's own frontmatter title.
-const OFFICIAL_TITLES: Record<number, string> = {
-  1: "A Brief Intro to Roofline Analysis",
-  2: "How to Think About TPUs",
-  3: "Sharded Matrices and How to Multiply Them",
-  4: "All the Transformer Math You Need to Know",
-  5: "How to Parallelize a Transformer for Training",
-  6: "Training LLaMA 3 on TPUs",
-  7: "All About Transformer Inference",
-  8: "Serving LLaMA 3 on TPUs",
-  9: "How to Profile TPU Code",
-  10: "Programming TPUs in JAX",
-  11: "Conclusions and Further Reading",
-  12: "How to Think About GPUs",
-};
+// They live in content/ so the Markdown twin of this page lists the same titles.
+const OFFICIAL_TITLES: Record<string, string> = officialTitles;
 
 interface ScalingBookProps {
   chapters: Chapter[];
