@@ -5,6 +5,20 @@
 # auto-synced from notes repo (source of truth lives at github.com/0x3ddie/notes)
 /content/writing/scaling-book/
 
+# generated on every build by scripts/generate-llm-mirrors.mjs from the page
+# sources: Markdown twins, llms.txt, llms-full.txt, robots.txt, sitemaps
+/public/**/*.md
+/public/llms.txt
+/public/llms-full.txt
+/public/robots.txt
+/public/sitemap.xml
+/public/sitemap-markdown.xml
+/content/llm-mirrors.json
+
+# citation-check answers quote third-party pages and people; only the scored
+# summary of each run is committed
+/citation-check/*/answers/
+
 # dependencies
 /node_modules
 /node_modules.nosync

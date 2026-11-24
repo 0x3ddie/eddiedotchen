@@ -9,13 +9,16 @@
     "preflight": "node scripts/preflight.mjs",
     "predev": "npm run preflight",
     "prebuild": "npm run preflight",
-    "dev": "npm run generate && next dev",
-    "build": "npm run generate -- --production && next build && npm run sitemap",
+    "dev": "npm run generate && npm run mirrors -- --dev && next dev",
+    "build": "npm run generate -- --production && npm run mirrors && next build && npm run verify:mirrors",
     "start": "next start",
     "lint": "next lint",
     "generate": "npm run sync:scaling-book && node scripts/generate-content.mjs",
     "sync:scaling-book": "node scripts/sync-scaling-book.mjs",
-    "sitemap": "node scripts/generate-sitemap.mjs"
+    "mirrors": "node scripts/generate-llm-mirrors.mjs",
+    "verify:mirrors": "node scripts/verify-llm-mirrors.mjs",
+    "citation-check": "node scripts/citation-check.mjs",
+    "sitemap": "npm run mirrors"
   },
   "dependencies": {
     "@chakra-ui/react": "^2.4.6",

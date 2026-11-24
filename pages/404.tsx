@@ -1,12 +1,13 @@
 import { useEffect } from "react";
-import { useRouter } from "next/router";
 
+// Unknown URLs go home. A full navigation, not router.replace: with a
+// middleware present, Next 13.1 turns that client transition into a data fetch
+// for the dynamic route the URL resembles (/writing/[slug]) and the page then
+// crashes on the missing props instead of redirecting.
 export default function Custom404() {
-  const router = useRouter();
-
   useEffect(() => {
-    router.replace("/");
-  });
+    window.location.replace("/");
+  }, []);
 
   return null;
 }

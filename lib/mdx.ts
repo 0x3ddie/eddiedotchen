@@ -2,10 +2,18 @@ import { serialize } from "next-mdx-remote/serialize";
 import path from "path";
 import fs from "fs";
 import remarkGfm from "remark-gfm";
+import { isPlaceholder } from "./site";
 
 export interface Content<TMetadata = { [key: string]: any }> {
   metadata: TMetadata;
   source: string;
+  /** The body is only a placeholder ("Coming soon."); see lib/site.ts. */
+  placeholder?: boolean;
+}
+
+/** The Markdown body of a file, without its frontmatter block. */
+export function bodyOf(raw: string): string {
+  return raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
 }
 
 export type MaybeContent<TMetadata> = Content<TMetadata> | undefined;
@@ -36,5 +44,6 @@ export async function getMdxContent<TMetadata>(
   return {
     metadata: source.frontmatter as TMetadata,
     source: compiledSource,
+    placeholder: isPlaceholder(bodyOf(content)),
   };
 }

@@ -52,6 +52,8 @@ function Layout({ children }: PropsWithChildren) {
       gap={{ md: 10 }}
     >
       <Flex
+        as="nav"
+        aria-label="Site"
         position="absolute"
         right="100%"
         mr="160px"
@@ -95,6 +97,8 @@ function Layout({ children }: PropsWithChildren) {
           display={{ base: "none", lg: "block" }}
         />
         <Flex
+          as="nav"
+          aria-label="Site"
           justify="space-between"
           position="fixed"
           top={0}
@@ -154,7 +158,8 @@ function Layout({ children }: PropsWithChildren) {
             </Flex>
           </Container>
         </Flex>
-        {children}
+        {/* <main> marks the page's own content for readers and crawlers. */}
+        <Box as="main">{children}</Box>
       </Container>
     </Container>
   );

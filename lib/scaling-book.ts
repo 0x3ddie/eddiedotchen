@@ -4,7 +4,8 @@ import { serialize } from "next-mdx-remote/serialize";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import { Content, MaybeContent } from "./mdx";
+import { bodyOf, Content, MaybeContent } from "./mdx";
+import { isPlaceholder } from "./site";
 
 export interface Chapter {
   slug: string;
@@ -40,6 +41,10 @@ export async function getChapter(slug: string): Promise<MaybeContent<Chapter>> {
   const source = await serialize(content, {
     parseFrontmatter: true,
     mdxOptions: {
+      // Chapters are plain Markdown written in Obsidian, not MDX. As MDX,
+      // `TPU{0, 0}` loses its braces (next-mdx-remote deletes expressions) and
+      // a stray `<` or `{` fails the build.
+      format: "md",
       development: false,
       remarkPlugins: [remarkGfm, remarkMath],
       rehypePlugins: [rehypeKatex],
@@ -49,5 +54,6 @@ export async function getChapter(slug: string): Promise<MaybeContent<Chapter>> {
   return {
     metadata: source.frontmatter as unknown as Chapter,
     source: source.compiledSource,
+    placeholder: isPlaceholder(bodyOf(content)),
   };
 }

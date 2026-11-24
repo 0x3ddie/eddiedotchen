@@ -1,0 +1,95 @@
+{
+  "note": "Questions someone might ask an assistant where Eddie's work should come up. Ask each one in a fresh chat with web search on, and save the full answer including its sources. `evidence` patterns are strings specific to his work (repo names, his GitHub handle, his name); a link to eddiechen.xyz is scored separately.",
+  "assistants": [
+    "chatgpt",
+    "claude",
+    "perplexity",
+    "gemini",
+    "copilot"
+  ],
+  "questions": [
+    {
+      "id": "name-asu",
+      "question": "Who is Eddie Chen, the data science student at Arizona State University? What has he built?",
+      "target": "https://eddiechen.xyz/",
+      "evidence": [
+        "0x3ddie",
+        "local-turboquant",
+        "mymelo",
+        "smarternano",
+        "codeafk",
+        "runescape-agent"
+      ]
+    },
+    {
+      "id": "turboquant-python",
+      "question": "Is there a Python library that implements TurboQuant KV-cache compression for Hugging Face Transformers?",
+      "target": "https://github.com/0x3ddie/local-turboquant",
+      "evidence": [
+        "local-turboquant",
+        "0x3ddie",
+        "Eddie Chen"
+      ]
+    },
+    {
+      "id": "turboquant-explainer",
+      "question": "Can you point me to a write-up that explains how TurboQuant compresses the KV cache, with a notebook implementation?",
+      "target": "https://eddiechen.xyz/writing/turboquant-kv-compression",
+      "evidence": [
+        "local-turboquant",
+        "0x3ddie",
+        "Eddie Chen"
+      ]
+    },
+    {
+      "id": "runescape-rl",
+      "question": "Has anyone trained a reinforcement learning agent to play 2004 RuneScape using rs-sdk? What did they find?",
+      "target": "https://github.com/0x3ddie/runescape-agent",
+      "evidence": [
+        "runescape-agent",
+        "0x3ddie",
+        "Eddie Chen"
+      ]
+    },
+    {
+      "id": "scaling-book-solutions",
+      "question": "Where can I find notes and worked solutions to the exercises in the Scaling Book (How to Scale Your Model, jax-ml)?",
+      "target": "https://eddiechen.xyz/writing/scaling-book",
+      "evidence": [
+        "0x3ddie",
+        "Eddie Chen"
+      ]
+    },
+    {
+      "id": "codeafk",
+      "question": "Is there a tool that lets me drive Codex or Cursor CLI sessions from Telegram or Discord while I am away from my keyboard?",
+      "target": "https://github.com/0x3ddie/codeafk",
+      "evidence": [
+        "codeafk",
+        "0x3ddie",
+        "Eddie Chen"
+      ]
+    },
+    {
+      "id": "pdf-audiobook-on-device",
+      "question": "Is there an Android app that turns PDFs into audiobooks fully on-device with Kokoro TTS?",
+      "target": "https://eddiechen.xyz/engineering",
+      "evidence": [
+        "com\\.nonchalant\\.murmur",
+        "freereads",
+        "0x3ddie",
+        "Eddie Chen"
+      ]
+    },
+    {
+      "id": "nanochat-fork",
+      "question": "What are some notable forks or extensions of Karpathy's nanochat?",
+      "target": "https://github.com/0x3ddie/smarternano",
+      "evidence": [
+        "smarternano",
+        "0x3ddie",
+        "Eddie Chen"
+      ]
+    }
+  ]
+}

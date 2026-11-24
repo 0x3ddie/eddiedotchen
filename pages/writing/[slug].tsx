@@ -6,18 +6,36 @@ import Layout from "../../components/Layout";
 import { getAllSlugs, getPost, Post as PostMetadata } from "../../lib/writing";
 import { Content } from "../../lib/mdx";
 import { NextSeo } from "next-seo";
+import { useRouter } from "next/router";
+import { JsonLd } from "../../components/JsonLd";
+import { articleJsonLd, pagePath } from "../../lib/site";
 
 interface PostProps {
   post: Content<PostMetadata>;
 }
 
 const Post: NextPageWithLayout<PostProps> = ({ post }) => {
+  const router = useRouter();
   return (
     <>
+      {/* No structured data for a post that is still a placeholder. */}
+      {!post.placeholder && (
+        <JsonLd
+          id="article-jsonld"
+          data={articleJsonLd({
+            path: pagePath(router.asPath),
+            title: post.metadata.title,
+            description: post.metadata.description,
+            date: post.metadata.date,
+            image: post.metadata.image,
+          })}
+        />
+      )}
       <NextSeo
         title={post.metadata.title}
         description={post.metadata.description}
         openGraph={{
+          type: "article",
           title: post.metadata.title,
           description: post.metadata.description,
           images: post.metadata.image
