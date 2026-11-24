@@ -46,6 +46,57 @@ const DEV = process.argv.includes("--dev");
 
 // --- llms.txt ---------------------------------------------------------------
 
+/**
+ * The resume's lead lines for the top of llms.txt, copied word for word from
+ * the resume's Markdown: the education lines, the merged open-source work, and
+ * each role and project with its date line and first bullet. Nothing is
+ * reworded or added, so this says only what the resume PDF says.
+ */
+function resumeHighlights(resume) {
+  const sections = new Map();
+  let lines = null;
+  for (const raw of resume.body.split("\n")) {
+    const line = raw.trim();
+    const heading = line.match(/^## (.+)$/);
+    if (heading) sections.set(heading[1], (lines = []));
+    else if (lines && line && line !== "---") lines.push(line);
+  }
+  const section = (name) => {
+    const found = [...sections.keys()].find((k) => k.toLowerCase().startsWith(name.toLowerCase()));
+    if (!found) throw new Error(`content/resume.md has no "## ${name}" section; llms.txt quotes it`);
+    return [found, sections.get(found)];
+  };
+  const bullets = (items) => items.filter((l) => l.startsWith("- ")).map((l) => `  ${l}`);
+  // "### Title", an optional *date line*, link lines, then bullets; keep the first bullet.
+  const entries = (items) => {
+    const out = [];
+    for (const line of items) {
+      if (line.startsWith("### ")) out.push({ title: line.slice(4), meta: "", first: "" });
+      else if (!out.length) continue;
+      else if (/^\*[^*].*\*$/.test(line)) out.at(-1).meta = line.slice(1, -1);
+      else if (line.startsWith("- ") && !out.at(-1).first) out.at(-1).first = line.slice(2);
+    }
+    return out.map((e) => `  - ${e.title}${e.meta ? ` (${e.meta})` : ""}${e.first ? `: ${e.first}` : ""}`);
+  };
+
+  const [education, educationLines] = section("Education");
+  const [openSource, openSourceLines] = section("Open Source");
+  const [experience, experienceLines] = section("Experience");
+  const [projects, projectLines] = section("Projects");
+  return [
+    `Highlights, quoted from the [resume](${abs(resume.md)}):`,
+    [
+      `- ${education}: ${educationLines.join(" · ")}`,
+      `- ${openSource}:`,
+      ...bullets(openSourceLines),
+      `- ${experience}:`,
+      ...entries(experienceLines),
+      `- ${projects}:`,
+      ...entries(projectLines),
+    ].join("\n"),
+  ].join("\n\n");
+}
+
 function llmsTxt({ docs, home, resume, projects, writing, scalingBook, reading }) {
   const link = (title, url, note) => `- [${mdText(title)}](${url})${note ? `: ${mdText(note)}` : ""}`;
   const twin = (doc) => abs(doc.md);
@@ -61,6 +112,7 @@ function llmsTxt({ docs, home, resume, projects, writing, scalingBook, reading }
   const sections = [
     `# ${md(site.name)}`,
     `> ${md(site.description)}`,
+    resumeHighlights(resume),
     [
       `This file is a generated index of the public content on ${SITE_URL.replace(/^https?:\/\//, "")}, built from the same sources as the web pages.`,
       "Each page linked below exists as Markdown at its web URL with `.md` appended (the home page is `/index.md`), and the web page returns that Markdown when the request sends `Accept: text/markdown`.",

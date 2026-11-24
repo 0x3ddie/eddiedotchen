@@ -91,7 +91,7 @@ Every page also exists as Markdown at the same URL plus `.md` (the home page is 
 | `/reading.md`, `/reading/<slug>.md` | `content/books/*.mdx` |
 | `/engineering.md` | `content/engineering/external.json` |
 | `/resume.md` | `content/resume.md` (the text of the resume PDF; see below) |
-| `/llms.txt`, `/llms-full.txt` | an index of the twins, and every page with real content in one file |
+| `/llms.txt`, `/llms-full.txt` | an index of the twins that opens with highlights quoted word for word from `/resume.md`, and every page with real content in one file |
 | `/robots.txt` | `lib/ai-crawlers.json` (the crawlers named as allowed) |
 | `/sitemap.xml`, `/sitemap-markdown.xml` | the list of pages and of twins |
 
@@ -110,6 +110,7 @@ Rules the generator keeps:
 - A twin says what its page says, nothing more. There is no content for crawlers only, and nothing is served by user agent. A page returns its twin when the request sends `Accept: text/markdown` (see `next.config.js`); that is the same content in another format.
 - Identity facts (name, one-line description, email, links) live in `content/site.json`. The SEO tags, the JSON-LD and `llms.txt` all read them from there. The build fails if the first sentence of the description uses a word that appears neither on the home page nor in the resume, because then only machines would read the claim.
 - Pages whose body is a placeholder (under 200 characters, such as an empty chapter) still get a twin but are left out of `llms.txt` and `llms-full.txt`.
+- No page shows a visible link to a twin or to `llms.txt`. Crawlers find them through each page's `<link rel="alternate" type="text/markdown">`, the `Link` response header, `/sitemap-markdown.xml` and `/llms.txt`. The files stay public: anyone with the URL can read them.
 
 `npm run build` ends with `npm run verify:mirrors`, which renders each twin through the site's own MDX renderer and compares it with the built page's `<main>`:
 

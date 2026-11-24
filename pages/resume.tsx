@@ -22,11 +22,7 @@ const Resume: NextPageWithLayout = () => {
           </Link>
         </Flex>
         <Text my={0} fontSize="sm" color="gray.600">
-          Plain-text mirror:{" "}
-          <Link href="/resume.md" color="blue.500" isExternal>
-            /resume.md
-          </Link>
-          . Projects:{" "}
+          Projects:{" "}
           <Link href="/engineering" color="blue.500">
             /engineering
           </Link>

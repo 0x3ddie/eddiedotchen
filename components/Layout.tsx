@@ -17,7 +17,6 @@ import {
 import { useRouter } from "next/router";
 import { PropsWithChildren } from "react";
 import { FiMenu } from "react-icons/fi";
-import { twinFor } from "../lib/site";
 
 function Navigation({
   link,
@@ -45,9 +44,6 @@ function Navigation({
 }
 
 function Layout({ children }: PropsWithChildren) {
-  const router = useRouter();
-  const twin = twinFor(router.pathname, router.asPath);
-
   return (
     <Container
       position="relative"
@@ -164,19 +160,6 @@ function Layout({ children }: PropsWithChildren) {
         </Flex>
         {/* <main> marks the page's own content for readers and crawlers. */}
         <Box as="main">{children}</Box>
-        <Box as="footer" mt={16} fontSize="xs" color="gray.500">
-          {twin && (
-            <>
-              <Link href={twin} _hover={{ color: "black" }}>
-                Markdown version of this page
-              </Link>
-              {" · "}
-            </>
-          )}
-          <Link href="/llms.txt" _hover={{ color: "black" }}>
-            llms.txt
-          </Link>
-        </Box>
       </Container>
     </Container>
   );
