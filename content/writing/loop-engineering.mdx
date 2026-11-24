@@ -1,0 +1,344 @@
+---
+title: "Loop Engineering"
+description: "How GLM-5.4 and Inkling 2 Mini run the same layers more than once per token, where the idea came from, and what it actually buys."
+date: "November 23, 2026"
+---
+
+Within three days of each other, two labs shipped a model built on the same idea. Thinking Machines released [Inkling 2 Mini](https://thinkingmachines.ai/news/inkling-2-mini/) on November 20, and Z.ai released [GLM-5.4](https://z.ai/blog/glm-5.4) on November 23, which they call "our first Loop Transformer". Both models run the middle of the network more than once for every token.
+
+What I find interesting is that they got there from opposite directions. Thinking Machines trained a small model (26.4B parameters) with the loop built in. Z.ai took a roughly 750B model it had already trained and converted it into a looped one. So this post is me working through both: what a loop is, where the idea came from (it's way older than this month), how each lab built theirs, and what the numbers actually say.
+
+Quick note on the title: right now "loop engineering" mostly refers to agent loops, where a harness keeps calling a model until a task is done (Karpathy's autoresearch is the best-known example). This post is about a different loop, the one inside the model. Concepts like looping harnesses, autoresearch and building out structured workflows are worth a separate discussion.
+
+## Context
+
+### What problem does a loop solve?
+
+At its core, a transformer has a fixed number of layers, and every token goes through each of them exactly once. That means the model gets a fixed number of sequential steps of computation before it has to commit to the next token. If a problem needs more steps than that, the model has to do the extra work out loud, in the tokens it writes (chain of thought), where it can carry results forward.
+
+So if we want more "thinking" per token, there are basically two knobs:
+
+- **More layers.** More parameters, more memory, more to train. And parameters do a lot of work storing facts, which isn't necessarily what we needed.
+
+- **More tokens.** Longer chains of thought. Works great, but every extra token costs a full forward pass, and long reasoning is slow.
+
+A loop is a third knob: **reuse layers you already have.** Run the same block twice (or three times) and you get a deeper network without storing any new weights.
+
+Both labs frame it almost the same way. Z.ai says memory-intensive tasks benefit from more parameters, while reasoning-intensive tasks benefit from more effective compute. Thinking Machines says knowledge "is mostly a function of total parameter count", and looping buys serial depth instead. Hold onto that split (parameters for knowledge, depth for reasoning), because it shows up in every result below.
+
+### So what is a loop, exactly?
+
+![A standard transformer runs six different layers once each. A looped transformer with the same six layers runs layers 3 and 4 three times with the same weights, giving ten layer applications.](/writing/loop-engineering/standard-vs-looped.svg)
+
+A looped transformer has three parts:
+
+- **Prelude:** the first few layers, which run once. They turn token embeddings into the model's internal representation.
+
+- **Loop block:** a group of middle layers that runs N times with **shared weights**. Pass 2 uses the exact same matrices as pass 1; it just starts from where pass 1 left off.
+
+- **Coda:** the last few layers, which run once and turn the internal representation back into a prediction.
+
+Think of it like re-reading a hard paragraph. You don't grow new neurons for the second read; you use the same ones, but you start from whatever you understood the first time. The parameters are the same, the computation is not.
+
+The accounting is simple. If you store 6 layers and loop the middle 2 three times, you apply 2 + 2×3 + 2 = 10 layers per token. The weights cost you 6 layers of memory; the compute costs you 10.
+
+### Isn't this just chain of thought? Or an agent loop?
+
+No, and the word "loop" is doing a lot of work right now, so it's worth separating them:
+
+```
+Agent loop:    harness → model → tool → model → ...
+               more model calls, outside the model
+
+Chain of       token → token → token → answer
+thought:       more tokens, reasoning written down
+
+Looped         one token, middle layers run 2–3×
+transformer:   more depth per token, nothing written
+```
+
+The last one is the only one that changes the architecture. It's also why Thinking Machines spends a big chunk of their post on monitorability: if the model does more of its reasoning inside the loop, less of it shows up in the chain of thought we can read. More on that later.
+
+## Where did this come from?
+
+Hopefully not to anyone's surprise, none of this is new. I deployed some agents to help trace the rough lineage:
+
+- **2016: Adaptive Computation Time** ([Graves](https://arxiv.org/abs/1603.08983)). An RNN learns *how many* steps to spend on each input before moving on. This is the "halting" idea, and it comes back at the very end of this post.
+
+- **2018: Universal Transformers** ([Dehghani et al.](https://arxiv.org/abs/1807.03819)). This is the root of the whole thing. Instead of a stack of different layers, apply the same layer over and over ("recurrent in depth"), which the paper describes as a transformer with tied parameters across all its layers. It adds a position and timestep embedding at every step, optionally uses ACT so each position decides when to stop, and shows that under certain assumptions it's Turing-complete. It's the only looping paper the Inkling 2 Mini post cites, and Z.ai names it too.
+
+- **2019: ALBERT** ([Lan et al.](https://arxiv.org/abs/1909.11942)) shared parameters across layers to make BERT smaller. Same trick, different goal: saving memory, not adding reasoning. **Deep Equilibrium Models** ([Bai et al.](https://arxiv.org/abs/1909.01377)) took it to the extreme: run one weight-tied layer until its output stops changing (a fixed point), effectively an infinitely deep network.
+
+- **2023: theory.** [Looped Transformers as Programmable Computers](https://arxiv.org/abs/2301.13196) showed a looped transformer with the right weights can emulate a basic computer and run iterative algorithms. [Looped Transformers are Better at Learning Learning Algorithms](https://arxiv.org/abs/2311.12424) matched a standard transformer on in-context learning tasks with under 10% of the parameters.
+
+- **Oct 2024: Relaxed Recursive Transformers** ([Bae et al.](https://arxiv.org/abs/2410.20672)). The first one that looks like what Z.ai did: take an already-trained model (Gemma 2B, 18 layers) and turn it into a recursive one (a 9-layer block run twice), initialized from the original weights, with a small LoRA per loop to "relax" the weight sharing, then continue training on 60B tokens. Big difference though: they *merged* different layers into one shared block to shrink the model. GLM-5.4 keeps every parameter and adds depth.
+
+- **Dec 2024: Coconut** ([Hao et al.](https://arxiv.org/abs/2412.06769)). Feeds the model's last hidden state back in as the next input, so it "reasons" without writing tokens. That's a loop across time rather than depth, but it's the same motivation: reasoning in latent space instead of in text.
+
+- **Feb 2025: Recurrent depth** ([Geiping et al.](https://arxiv.org/abs/2502.05171)). This is where the vocabulary comes from: a **prelude** (2 layers), a **core recurrent block** (4 layers) and a **coda** (2 layers). The embedded input gets re-injected into every iteration, the starting state is random noise, and during training the number of iterations is sampled at random (mean 32). They trained it to 3.5B parameters on 800B tokens. You'll see a lot of this design in Inkling 2 Mini.
+
+- **Feb 2025: Reasoning with Latent Thoughts** ([Saunshi et al.](https://arxiv.org/abs/2502.17416)). The key claim: a k-layer model looped L times nearly matches a kL-layer model, and does much better than the k-layer model alone. They also found looping helps reasoning a lot more than memorization (looped models were worse on closed-book QA). Same split as before.
+
+- **Mid 2025: tiny recursive models.** [HRM](https://arxiv.org/abs/2506.21734) (27M parameters) and [TRM](https://arxiv.org/abs/2510.04871) (7M parameters, 45% on ARC-AGI-1) showed that recursion can do a surprising amount on puzzles at tiny scale.
+
+- **Jul 2025: Mixture-of-Recursions** ([Bae et al.](https://arxiv.org/abs/2507.10524)). A router decides how many loops each *token* gets, and a KV-sharing variant reuses the keys and values from the first recursion for the later ones. Keep that second part in mind for GLM-5.4.
+
+- **Oct 2025: Ouro / Looped Language Models** ([Zhu et al.](https://arxiv.org/abs/2510.25741)). Pre-trained looped models (1.4B and 2.6B) on 7.7T tokens, with a learned objective for how deep to go, and reported they match up to 12B models. Their explanation for the gains: "not from increased knowledge capacity, but from superior knowledge manipulation capabilities".
+
+- **2026: the details get worked out.** [Attention Residuals](https://arxiv.org/abs/2603.15031) (Kimi, March) replaced the fixed residual sum with attention over earlier layers' outputs; Inkling 2 Mini uses it. [Hyperloop Transformers](https://arxiv.org/abs/2604.21254) (April) looped only the middle block and matched depth-matched baselines with about 50% fewer parameters. [Right Direction, Wrong Step](https://arxiv.org/abs/2609.16665) (September) found extra loops can hurt because a full-size update overshoots, and a quarter-size step along the same direction fixed 72–83% of the failures they studied. [How to Loop Your Transformer](https://arxiv.org/abs/2610.40325) (October) compared looping the whole model against looping a middle block, up to 1B parameters.
+
+So the idea is from 2018 and the pieces were mostly there by 2025. What's new this month is the scale (and 2 mainstream lab adoption). Most of the work above topped out at a few billion parameters; Inkling 2 Mini is a 26.4B MoE and GLM-5.4 is around 750B.
+
+## Inkling 2 Mini: loop the middle
+
+![Inkling 2 Mini: a six-layer prelude runs once, layers 7 to 18 run three times with shared weights and pass a gated message between passes, and the final six layers run once, for 48 layer applications from 24 stored layers.](/writing/loop-engineering/inkling-2-mini.svg)
+
+Inkling 2 Mini has 24 layers in four blocks of six. The first block (the prelude) runs once, the two middle blocks (layers 7–18) run three times, and the last block runs once:
+
+```
+6 + 12×3 + 6 = 48 layer applications per token
+               (from 24 stored layers)
+```
+
+It's a Mixture-of-Experts model: 26.4B total parameters, 3.4B active per token at one pass, and 5.4B once you count the loops (each extra pass adds about 1.0B effective active parameters). The whole thing is about 20GB and runs on a 32GB Mac. The pass count is fixed at 3.
+
+**Why loop the middle?**
+
+Their intuition is that the first and last layers mostly translate between token embeddings and the model's internal representation, while the middle layers do the more abstract work. So looping the edges mostly repeats translation; looping the middle repeats the thinking.
+
+They tested it: looping the middle 12 layers beat looping the last 12 on 27 out of 28 evaluations. They also measured it as a "compute-equivalent gain": how much more compute a no-loop model would need to reach the same loss. At training step 2,000, that was 1.51–1.91× for the middle loop, versus 1.24–1.36× for looping the last layers. (Hyperloop, back in April, made the same choice at small scale.)
+
+**How does pass 2 know what pass 1 did?**
+
+This is the part I had to read twice: in a normal transformer, every layer adds its output into one running sum, the residual stream. Inkling 2 Mini uses **attention residuals** instead: each layer takes a learned, weighted mix of the outputs of earlier blocks, rather than just reading the running total. For a loop, that means a later pass can choose what to pull from earlier passes instead of getting everything blended together.
+
+Each pass gets two inputs:
+
+- **The prelude's output.** Every pass starts from it, not just the first one. Geiping et al.'s recurrent depth model does the same thing, re-injecting the embedded input at every iteration (presumably so later passes stay anchored to what the token actually was).
+
+- **The message.** Passes 2 and 3 also read the middle blocks' outputs from the previous pass.
+
+The message goes through a **learned gate**, and this is the clever bit: the gate starts fully closed. At the start of training, each pass ignores the previous one, so the model behaves exactly like a normal non-looped model. As training goes on, the gate opens and the passes start talking to each other. That's how they add looping during training without wrecking it.
+
+**How was it trained?**
+
+It came off their main scaling ladder with two changes: looping, and pruning. It started with 384 experts per layer (8 active per token), and partway through midtraining they deleted two-thirds of them, keeping the 128 most-used. Then they trained it on 1T tokens distilled from a larger internal Inkling model to recover what pruning lost, then SFT, then RL on 2.2T tokens over 2,000 steps. It was trained and shipped in 4-bit NVFP4 (last four layers in 8-bit), so there's no quantization loss at deployment.
+
+**What about different loop counts?**
+
+They also released a research sibling, **TML-d24-varloop-research**, where you choose the number of passes at inference. It was trained on 1 to 5 passes (sampled 1:2:6:2:1, so mostly 3) and post-trained at 3. This is the model all the "more passes" results below come from. They're careful to say it's a research artifact that may behave unpredictably at pass counts other than 3, and that it shouldn't be compared directly to the released Inkling 2 Mini.
+
+## GLM-5.4: loop adaptation
+
+![GLM-5.4: a 26-layer prelude, layers 27 to 54 run twice with a damp gate after each pass, and a 24-layer coda. Pass 2 reuses pass 1's KV cache and token picks plus its own 128-token sliding window.](/writing/loop-engineering/glm-5-4.svg)
+
+Z.ai went the other way. Their argument: weight sharing is parameter-efficient, but looped models trained from scratch still lag behind normal models given the same pre-training compute. So instead of pre-training a looped model, they **adapted an already pre-trained base into a loop through continued training**. That's the "loop adaptation" part, and the reason is cost: you get the loop for a small amount of extra compute instead of a whole new pre-training run.
+
+The base is GLM-5, which per its [technical report](https://arxiv.org/abs/2602.15763) is a 744B MoE with 40B active parameters, using multi-head latent attention (MLA) and DeepSeek Sparse Attention (DSA). From the architecture figure in their post:
+
+```
+Prelude:  layers 1–26    runs once
+Loop:     layers 27–54   runs twice, same weights
+Coda:     layers 55–78   runs once
+
+26 + 28×2 + 24 = 106 layer applications per token
+                 (from 78 stored layers)
+```
+
+Very rough napkin math: if GLM-5's 40B active parameters were spread evenly over its 78 layers (they aren't exactly), running 28 of them twice is like 40B × 106/78 ≈ 54B active per token. Z.ai doesn't give this number, so treat it as an order of magnitude.
+
+Notice that the loop block is just GLM-5's own layers 27–54 (trained further, but not merged or compressed), which is the opposite of Relaxed Recursive Transformers. They run the same 28 layers a second time and train the model to make use of it.
+
+Easy to say, but it creates one stability problem and two cost problems, and Z.ai's post walks through a fix for each.
+
+### Problem 1: the activations blow up
+
+If you take the output of layers 27–54 and feed it straight back into layer 27, you're handing layer 27 something it has never seen: a representation that has already been through the whole middle of the network. Z.ai found that overwriting the hidden state like this makes activation norms blow up across iterations, and then the coda (layers 55–78) gets inputs at a scale it never trained on.
+
+Their fix is a **damp gate** after each pass:
+
+```
+x1 = x0 + β1 · (h1 − x0)      after pass 1
+x2 = x1 + β2 · (h2 − x1)      after pass 2
+
+β = σ(Linear(RMSNorm(x)))     one value per token,
+                              between 0 and 1
+```
+
+Here x0 is what came out of the prelude, h1 is what pass 1 computed, and x1 is the state that gets passed on. If you rearrange it, x1 = (1 − β1)·x0 + β1·h1, so the gate just blends the old state and the new one:
+
+- **β = 0:** the pass does nothing; the state goes through untouched.
+
+- **β = 1:** the pass fully overwrites the state.
+
+- **In between:** take a partial step toward what the pass computed.
+
+The gate is computed per token from the state going into the pass, so each token gets its own step size.
+
+The cool part is what the gates learned. Z.ai says the first pass writes conservatively (small β) and mainly builds global context, while the second pass reuses that and opens the gates to write full updates. On harder tokens, the first pass writes more aggressively, so the hard predictions get more out of the refinement. So the model basically split the work on its own: pass 1 mostly builds context, pass 2 does the writing.
+
+Something I noticed: this lines up with the [Right Direction, Wrong Step](https://arxiv.org/abs/2609.16665) paper from September, which found that extra loops often fail because a full-size update overshoots, and that a quarter-size step along the same direction fixes most of those failures. A damp gate is basically a learned step size. Z.ai doesn't cite that paper, so this is my connection, not theirs.
+
+### Problem 2: the KV cache doubles
+
+If you've read the [TurboQuant post](/writing/turboquant-kv-compression), you know the KV cache is what eats GPU memory on long contexts: every layer stores a key and a value for every token. A naive loop would keep a full KV cache for every pass, so for the looped layers, memory would multiply by the loop count.
+
+Napkin math, counting one "entry" as one token's KV at one layer, with a 1M-token context:
+
+```
+                       layers × tokens = entries
+GLM-5, no loop:          78   × 1M     = 78M
+Naive second pass:     + 28   × 1M     = +28M     (+36%)
+GLM-5.4 second pass:   + 28   × 128    = +3,584   (+0.005%)
+```
+
+To see how they get that last line, we need one detail about the base model. GLM-5 uses **sparse attention**: for each query, a small "indexer" scores all the earlier tokens and keeps only the top 2,048, and attention only looks at those. (DSA's indexer still scans every earlier position, but the expensive attention only touches the 2,048 it picks.)
+
+So in GLM-5.4, pass 2 attends over two "banks" with a single softmax:
+
+```
+Pass 2's query at token t attends over:
+
+  bank 1: pass 1's cached KV for the 2,048 tokens
+          pass 1 picked (reused, nothing new stored)
+  bank 2: pass 2's own KV for the last 128 tokens
+          (sliding window)
+
+  one softmax over both banks
+```
+
+Far-away context comes from what pass 1 already cached, and pass 2 only keeps fresh keys and values for the tokens right around it. An extra loop costs one 128-token window of cache per layer instead of a second full context, which is how Z.ai says they kept GLM-5.4's deployment cost at 1M context under control relative to GLM-5.3. Z.ai says they "build on cross-loop KV sharing", and the closest earlier version I found is the Mixture-of-Recursions KV-sharing variant from 2025, which reused the first recursion's keys and values for later ones.
+
+### Problem 3: the indexer runs twice
+
+The indexer isn't free either, so pass 2 doesn't run one at all. It reuses the top-2,048 token picks from pass 1's indexer, which adds zero indexing overhead, and Z.ai says it performs nearly identically to recomputing the picks on every pass. Side note from their figure: the base model already shares indexers. Apart from the first two layers, only one layer in each group of four runs an indexer, and the other three reuse its picks. Pass 2 just takes that one step further.
+
+On top of the three fixes, they fused kernels to cut down the memory reads and writes that looping multiplies, and report up to 200 tokens/s off-peak and 70–80 at peak load.
+
+## Side by side
+
+| | Inkling 2 Mini | GLM-5.4 |
+| --- | --- | --- |
+| Released | Nov 20, 2026 | Nov 23, 2026 |
+| Size | 26.4B total, 3.4B active (5.4B counting loops) | About 750B (GLM-5 base: 744B, 40B active) |
+| Stored layers | 24 | 78 |
+| Looped layers | 7–18 (middle 12) | 27–54 (middle 28) |
+| Passes | 3, fixed | 2 |
+| Layer applications per token | 48 | 106 |
+| How it got its loop | Added during training, gate starts closed | Converted a trained base by continued training |
+| What a pass reads | Prelude output + previous pass's message | Previous state, through a damp gate |
+| KV cache across passes | Not disclosed | Pass 2 reuses pass 1's sparse KV + own 128-token window |
+| Weights | Open, Apache 2.0 | Not yet; planned after safety hardening |
+
+## What the numbers say
+
+### Same parameters, looped vs not
+
+Z.ai's cleanest evidence is an ablation on a 30B model with the same architecture as the 750B base. Same parameter count, and about 10% more total training compute for the looped version (evaluated after 200K long-context SFT, with thinking on):
+
+| Benchmark | No loop | Loop | Change | Avg. output length |
+| --- | --- | --- | --- | --- |
+| AIME25 | 19.17 | 30.42 | +11.25 | −2.0% |
+| GPQA-Diamond | 47.58 | 56.26 | +8.68 | −11.7% |
+| AA-LCR | 40.33 | 47.67 | +7.34 | −9.7% |
+| MMLU-Pro | 71.65 | 75.05 | +3.40 | −14.9% |
+| IFBench | 50.20 | 53.47 | +3.27 | −13.0% |
+
+The biggest gains are on math (AIME25), science reasoning (GPQA-Diamond) and long context (AA-LCR), and the smallest on the more knowledge-heavy MMLU-Pro and on instruction following (IFBench). And the outputs got *shorter* on all five, by up to 15%.
+
+Thinking Machines ran the same kind of comparison on unpruned models: the non-looped model cost 7.5% less compute to train, but needed **140% more inference compute** to match the looped model's loss on 512k-token agentic traces. Pay a bit more at training, save a lot at inference.
+
+### Do more passes keep helping?
+
+This is where the variable-loop research model is useful, since it's one set of weights run at 1 to 5 passes:
+
+| Benchmark | 1 pass | 2 | 3 | 4 | 5 |
+| --- | --- | --- | --- | --- | --- |
+| DeepSWE v1.1 | 0.7 | 28.3 | 47.4 | 46.9 | 48.2 |
+| SWEBench Verified | 56.3 | 76.5 | 78.7 | 79.3 | 79.6 |
+| GPQA Diamond | 69.6 | 79.2 | 84.2 | 81.9 | 83.1 |
+| ARC-AGI-2 | 0.8 | 12.2 | 22.1 | 20.3 | 27.1 |
+| MRCR v2 (8-needle, 256K–512K) | 26.2 | 65.2 | 89.2 | 93.4 | 92.1 |
+| SimpleQA Verified | 6.3 | 6.5 | 7.3 | 6.8 | 6.7 |
+
+The pattern: huge jumps from 1 to 3 passes (DeepSWE goes from basically zero to 47%), then mostly flat. That plateau at 3 is partly baked in, since 3 passes dominated its training. Thinking Machines also ran a serial-reasoning test (N-Hop Lookup: follow a chain of lookups in fictional tables without writing anything down) where accuracy kept improving out to 10 passes, twice what the model was ever trained on.
+
+### Where did the thinking go?
+
+If each token gets more computation, you'd expect the model to need fewer tokens. That's what both labs found. On GPQA Diamond questions the research model answered correctly at every pass count:
+
+| | 1 pass | 3 passes | 5 passes |
+| --- | --- | --- | --- |
+| Mean reasoning tokens | 3,703 | 1,731 | 1,661 |
+| Uncertainty words ("wait", "actually", "hmm") | 9.7 | 3.9 | 3.6 |
+| Words per sentence | 8.9 | 8.7 | 8.7 |
+
+The chain of thought got less than half as long, and it didn't get harder to read (same sentence length, same share of dictionary words). The model just backtracked less. Z.ai's version is the output-length column in the table above, and their phrasing is that part of the reasoning moves from explicit output tokens into the depth of the loop.
+
+They also measured how long a task the model can do with no chain of thought at all, in human time: 16 seconds at one pass, 37 seconds at three, and roughly flat after that.
+
+### What doesn't improve: knowledge
+
+Look at SimpleQA Verified in the sweep: 6.3 → 6.5 → 7.3 → 6.8 → 6.7. Basically flat. Looping doesn't make the model know more, because knowledge lives in the parameters and a loop doesn't add any. Thinking Machines found the same on the closed-book factual benchmarks they ran (AA-Omniscience, SimpleQA Verified, SimpleVQA, WorldVQA), and it's the same thing Saunshi et al. and Ouro reported in 2025. The model makes up for it with search and tools, which is where it scores well.
+
+## What it costs
+
+A loop isn't free; it just moves the cost.
+
+**Compute per token goes up.** This connects to [Chapter 1 of my Scaling Book notes](/writing/scaling-book/chapter-1): at batch size 1, decoding is memory-bound, so speed is roughly bandwidth divided by bytes read per token, and every extra pass re-reads the looped layers' weights. Thinking Machines' speed charts use a theoretical ceiling of 614 GB/s with BF16 weights (2 bytes per parameter), batch size 1, counting those repeated reads. Doing that math myself:
+
+```
+1 pass:    3.4B × 2 bytes = 6.8 GB per token
+           614 / 6.8  ≈ 90 tokens/s
+
+3 passes:  5.4B × 2 bytes = 10.8 GB per token
+           614 / 10.8 ≈ 57 tokens/s
+```
+
+So the loop costs roughly a third of the theoretical decode speed. That's still a good trade if the alternative is a model 140% more expensive at inference, or one that writes twice as many reasoning tokens. (In practice the weights are 4-bit, so real numbers will differ; this is just the shape of the trade.)
+
+**Weight memory doesn't go up at all,** since the weights are shared. The KV cache is the open question: GLM-5.4's trick keeps it nearly flat, and Thinking Machines doesn't say how Inkling 2 Mini handles it.
+
+**Both models think too long sometimes.** Z.ai says GLM-5.4 "tends to get caught in overly long 'marathon thinking' loops", though they say it does improve accuracy. Thinking Machines' model card says Inkling 2 Mini sometimes gets stuck in long reasoning loops, especially when debugging code, and recommends capping output tokens and agent turns.
+
+**It's harder to see what the model is thinking.** This is the concern Thinking Machines takes most seriously: reasoning that happens inside the loop never shows up in the chain of thought, so a monitor reading the CoT can't catch it. Their early results are reassuring at this scale. The shorter chains of thought stayed legible, the models were bad at deliberately steering their CoT (for chains of 750–1,250 tokens, they followed an instruction about their own CoT at most 0.1% of the time), and in a sabotage test they saw no clear trend as passes increased. They released both models partly so other people can study this, and [Goodfire](https://www.goodfire.com/research/interpreting-inkling-2-mini/) has already published an early interpretability write-up of Inkling 2 Mini.
+
+> **Critique:** Z.ai's headline claim, that GLM-5.4 reaches intelligence levels comparable to 2T–3T parameter models, comes with no table behind it. The only numbers they published are from the 30B ablation, and that looped model also got about 10% more training compute, so not all of the gain is the loop. GLM-5.4's weights and API aren't out yet, so nobody outside can check. On the Inkling side, the pass-count sweep is on a research model trained mostly at 3 passes, which Thinking Machines themselves say not to compare directly to the released model. And at 26B and 750B, two data points isn't a scaling law yet.
+
+## What's next
+
+Neither model decides *how many* loops each token gets. Inkling 2 Mini always runs 3, and GLM-5.4 always runs 2. Z.ai lists exactly this as open work: adaptive compute, so harder tokens get more iterations. That's the 2016 ACT idea and the 2018 Universal Transformer halting mechanism, and Mixture-of-Recursions and Ouro both did versions of it at small scale. GLM-5.4's damp gate already does a soft version (harder tokens write more aggressively on pass 1), but it still pays for both passes on every token.
+
+The other open question is how far this scales. Z.ai says they're scaling loop depth and model size at the same time, and that their next, significantly larger model is coming soon.
+
+## Wrapping up
+
+Two labs, opposite routes, same answer. Thinking Machines built the loop into a small model from the start, carefully, with a gate that starts closed so the model learns to use the loop gradually. Z.ai took a model they'd already trained and bolted the loop on afterward, then had to fix the three things that broke: exploding activations, a doubled KV cache, and a second set of indexers.
+
+And the results agree with each other, and with most of the research back to 2018: depth buys reasoning, parameters buy knowledge, and a loop is a way to get more of the first without paying for more of the second.
+
+## Sources
+
+- Z.ai, [GLM-5.4: Toward Generalized Coding with Our First Loop Transformer](https://z.ai/blog/glm-5.4), November 23, 2026. The GLM-5.4 diagram above is redrawn and simplified from the architecture figure in this post.
+- GLM-5 Team, [GLM-5: from Vibe Coding to Agentic Engineering](https://arxiv.org/abs/2602.15763) (2026)
+- Thinking Machines, [Introducing Inkling 2 Mini](https://thinkingmachines.ai/news/inkling-2-mini/), November 20, 2026
+- Thinking Machines, [Inkling 2 Mini model card](https://thinkingmachines.ai/model-card/inkling-2-mini/) and [TML-d24-varloop-research model card](https://thinkingmachines.ai/model-card/tml-d24-varloop-research/)
+- Goodfire, [Interpreting Inkling 2 Mini](https://www.goodfire.com/research/interpreting-inkling-2-mini/), November 20, 2026
+- Graves, [Adaptive Computation Time for Recurrent Neural Networks](https://arxiv.org/abs/1603.08983) (2016)
+- Dehghani et al., [Universal Transformers](https://arxiv.org/abs/1807.03819) (2018)
+- Lan et al., [ALBERT](https://arxiv.org/abs/1909.11942) (2019)
+- Bai, Kolter and Koltun, [Deep Equilibrium Models](https://arxiv.org/abs/1909.01377) (2019)
+- Giannou et al., [Looped Transformers as Programmable Computers](https://arxiv.org/abs/2301.13196) (2023)
+- Yang et al., [Looped Transformers are Better at Learning Learning Algorithms](https://arxiv.org/abs/2311.12424) (2023)
+- Bae et al., [Relaxed Recursive Transformers](https://arxiv.org/abs/2410.20672) (2024)
+- Hao et al., [Training Large Language Models to Reason in a Continuous Latent Space](https://arxiv.org/abs/2412.06769) (2024)
+- Geiping et al., [Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach](https://arxiv.org/abs/2502.05171) (2025)
+- Saunshi et al., [Reasoning with Latent Thoughts: On the Power of Looped Transformers](https://arxiv.org/abs/2502.17416) (2025)
+- Wang et al., [Hierarchical Reasoning Model](https://arxiv.org/abs/2506.21734) (2025)
+- Bae et al., [Mixture-of-Recursions](https://arxiv.org/abs/2507.10524) (2025)
+- Jolicoeur-Martineau, [Less is More: Recursive Reasoning with Tiny Networks](https://arxiv.org/abs/2510.04871) (2025)
+- Zhu et al., [Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/abs/2510.25741) (2025)
+- Kimi Team, [Attention Residuals](https://arxiv.org/abs/2603.15031) (2026)
+- Zeitoun, Torroba-Hennigen and Kim, [Hyperloop Transformers](https://arxiv.org/abs/2604.21254) (2026)
+- Guo et al., [Right Direction, Wrong Step](https://arxiv.org/abs/2609.16665) (2026)
+- Ekbote et al., [How to Loop Your Transformer](https://arxiv.org/abs/2610.40325) (2026)
