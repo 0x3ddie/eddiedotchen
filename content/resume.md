@@ -8,16 +8,15 @@ pdf_sha256: 2a2798e3d18fe6693d12e68b813c8c234f67041b4ae87811a0f7192f06f7646f
 
 # Edward Chen — Resume
 
-San Ramon, CA · echen1246@gmail.com
-[linkedin.com/in/eddie17](https://linkedin.com/in/eddie17) · [github.com/0x3ddie](https://github.com/0x3ddie) · [eddiechen.xyz](https://eddiechen.xyz/)
+San Ramon, CA · echen1246@gmail.com · [linkedin.com/in/eddie17](https://linkedin.com/in/eddie17) · [github.com/0x3ddie](https://github.com/0x3ddie) · [eddiechen.xyz](https://eddiechen.xyz/)
 
-Canonical PDF: https://eddiechen.xyz/Edward-Chen-Resume.pdf
+[Download PDF](/Edward-Chen-Resume.pdf)
 
 ---
 
 ## Education
 
-**Arizona State University** — B.S. Data Science, B.A. Business Administration
+**Arizona State University** — B.S. Data Science, B.A. Business Administration\
 Expected December 2027 · GPA: 3.7 — Dean’s List
 
 Coursework: Operating Systems, Data Structures, Deep Learning, Machine Learning, Computer Vision, Linux, Lin. Algebra
@@ -75,19 +74,7 @@ Repo: [github.com/0x3ddie/runescape-agent](https://github.com/0x3ddie/runescape-
 - Wrote a game simulator in C around 100x faster than its Python reference and bit-exact to it over 61M game ticks; added CUDA graphs to the PPO update, raising training throughput 11x to ~28K decisions/s on one G4 GPU.
 - Trained a recurrent PPO agent to navigate the map through clicks, chop, mine, fish and fight from game rewards on a private RuneScape server.
 
-### murmur — ONNX Runtime, Flutter, SQLite
-
-App: https://play.google.com/apps/testing/com.nonchalant.murmur
+### [murmur](https://play.google.com/apps/testing/com.nonchalant.murmur) — ONNX Runtime, Flutter, SQLite
 
 - Built an Android app that reads PDFs aloud with fully on-device inference, reaching initial playback in approximately three seconds during testing.
 - Moved inference to a background thread through a modified Flutter/ONNX integration; connected native speech preprocessing through Dart FFI and cached sentence results in SQLite.
-
----
-
-## Links
-
-- Website: https://eddiechen.xyz/
-- Projects: https://eddiechen.xyz/engineering
-- Writing: https://eddiechen.xyz/writing
-- GitHub: https://github.com/0x3ddie
-- X / Twitter: https://twitter.com/ayocheddie

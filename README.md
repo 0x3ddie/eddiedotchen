@@ -7,7 +7,7 @@ Personal website built with Next.js, Chakra UI, and MDX.
 - **Reading** - Book reviews with an interactive 3D bookshelf
 - **Writing** - Blog posts in MDX format
 - **Projects** - Showcase of my engineering projects
-- **Resume** - PDF resume viewer
+- **Resume** - the resume as a page (from `content/resume.md`), with the PDF to download
 
 ## Getting Started
 
@@ -122,7 +122,7 @@ It also checks the canonical and Markdown-alternate links, that every built page
 
 ### Resume
 
-The resume PDF (`public/Edward-Chen-Resume.pdf`) is exported from a document outside this repo, so its text lives a second time in `content/resume.md`, which also records the PDF's SHA-256 in its frontmatter (`pdf_sha256`). When you replace the PDF, change both in the same commit:
+The resume PDF (`public/Edward-Chen-Resume.pdf`) is exported from a document outside this repo, so its text lives a second time in `content/resume.md`, which also records the PDF's SHA-256 in its frontmatter (`pdf_sha256`). The `/resume` page renders `content/resume.md` (its `# ` heading becomes the page title, and its link to the PDF becomes the download button), so the page, `/resume.md` and the PDF say the same thing. When you replace the PDF, change both in the same commit:
 
 1. Update `content/resume.md` so it says what the new PDF says.
 2. Set `pdf_sha256` to the output of `shasum -a 256 public/Edward-Chen-Resume.pdf`.

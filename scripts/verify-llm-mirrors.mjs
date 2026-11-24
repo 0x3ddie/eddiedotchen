@@ -277,9 +277,6 @@ async function checkPage(page) {
   if (!main) return fail(page.url, "page has no <main>");
   pageTexts.set(page.url, htmlToText(main[1]));
 
-  // The resume page shows the PDF in a frame; its twin is checked against the PDF.
-  if (page.kind === "resume") return;
-
   let twinHtml;
   try {
     twinHtml = await renderTwin(twin, { math: page.kind === "chapter", gfm: page.gfm !== false });
@@ -437,11 +434,8 @@ function checkDescription() {
 // updated together. When the PDF's text can be read, the words are compared
 // too: every PDF word must be in the Markdown, and the Markdown may add only
 // its own headings and link labels and the wording listed here.
-const RESUME_LABELS = new Set([
-  "resume", "canonical", "pdf", "repo", "demo", "app", "links", "website", "projects",
-  "writing", "github", "x", "twitter", "portfolio", "open", "source",
-  "a", "an", "the", "to", "of", "and", "in", "on", "for", "with", "at", "by",
-]);
+// "Edward Chen — Resume", "Download PDF", and "Repo:" before a project's repository.
+const RESUME_LABELS = new Set(["resume", "download", "pdf", "repo"]);
 // Wording the Markdown may use where the PDF words it differently; none at present.
 const RESUME_WORDING = new Set([]);
 // PDF words the Markdown may leave out; none at present.

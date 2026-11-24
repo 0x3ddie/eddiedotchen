@@ -56,7 +56,8 @@ function resumeHighlights(resume) {
   const sections = new Map();
   let lines = null;
   for (const raw of resume.body.split("\n")) {
-    const line = raw.trim();
+    // A trailing backslash is a Markdown line break; one line per item here.
+    const line = raw.trim().replace(/\\$/, "");
     const heading = line.match(/^## (.+)$/);
     if (heading) sections.set(heading[1], (lines = []));
     else if (lines && line && line !== "---") lines.push(line);
