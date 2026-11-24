@@ -8,6 +8,10 @@
 //
 // Runs as part of `npm run generate` (so on every Vercel build), and can
 // also be invoked directly: `npm run sync:scaling-book`.
+//
+// Local preview: set SCALING_BOOK_SOURCE_DIR to a folder of chapter .md files
+// (e.g. drafts/scaling-book, or the Obsidian vault folder) to read from disk
+// instead of cloning the notes repo. Opt-in only; unset on Vercel.
 
 import { execSync } from "node:child_process";
 import { mkdtempSync, rmSync, existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
@@ -33,27 +37,34 @@ function log(line) {
 }
 
 async function main() {
-  const tmp = mkdtempSync(path.join(tmpdir(), "scaling-book-sync-"));
-  log(`cloning ${NOTES_REPO} (shallow) → ${tmp}`);
+  const localSource = process.env.SCALING_BOOK_SOURCE_DIR;
+  // Only the clone is ever deleted; a local source dir is read-only to this script.
+  const tmp = localSource ? null : mkdtempSync(path.join(tmpdir(), "scaling-book-sync-"));
 
-  try {
-    execSync(`git clone --depth=1 --quiet "${NOTES_REPO}" "${tmp}"`, {
-      stdio: "inherit",
-      timeout: 60_000,
-    });
-  } catch (err) {
-    log(`clone failed: ${err.message}`);
-    log("continuing without scaling-book content (non-fatal).");
-    rmSync(tmp, { recursive: true, force: true });
-    if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
-    writeFileSync(path.join(OUT_DIR, "index.json"), "[]");
-    return;
+  if (localSource) {
+    log(`SCALING_BOOK_SOURCE_DIR set: reading chapters from ${path.resolve(localSource)} (no clone)`);
+  } else {
+    log(`cloning ${NOTES_REPO} (shallow) → ${tmp}`);
+
+    try {
+      execSync(`git clone --depth=1 --quiet "${NOTES_REPO}" "${tmp}"`, {
+        stdio: "inherit",
+        timeout: 60_000,
+      });
+    } catch (err) {
+      log(`clone failed: ${err.message}`);
+      log("continuing without scaling-book content (non-fatal).");
+      rmSync(tmp, { recursive: true, force: true });
+      if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
+      writeFileSync(path.join(OUT_DIR, "index.json"), "[]");
+      return;
+    }
   }
 
-  const sourceDir = path.join(tmp, NOTES_PATH);
+  const sourceDir = localSource ? path.resolve(localSource) : path.join(tmp, NOTES_PATH);
   if (!existsSync(sourceDir)) {
-    log(`source path does not exist in clone: ${NOTES_PATH}`);
-    rmSync(tmp, { recursive: true, force: true });
+    log(`source path does not exist: ${localSource ? sourceDir : NOTES_PATH}`);
+    if (tmp) rmSync(tmp, { recursive: true, force: true });
     if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
     writeFileSync(path.join(OUT_DIR, "index.json"), "[]");
     return;
@@ -123,7 +134,7 @@ async function main() {
 
   log(`manifest: ${manifest.length} published chapter(s)`);
 
-  rmSync(tmp, { recursive: true, force: true });
+  if (tmp) rmSync(tmp, { recursive: true, force: true });
 }
 
 function parseChapterNumber(filename) {

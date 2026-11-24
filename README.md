@@ -67,6 +67,16 @@ jobs:
 
 Store the hook URL as a repo secret named `WEBSITE_DEPLOY_HOOK_URL` in `notes`.
 
+#### Previewing chapters before they are in `notes`
+
+Set `SCALING_BOOK_SOURCE_DIR` to a local folder of chapter `.md` files (for example the vault's `One/Scaling Book` folder) and the sync reads from disk instead of cloning. It only reads that folder; nothing in it is changed. Run the steps separately, because `npm run dev` re-syncs from GitHub and wipes the local copy:
+
+```bash
+SCALING_BOOK_SOURCE_DIR="path/to/vault/One/Scaling Book" npm run sync:scaling-book
+node scripts/generate-content.mjs
+npx next dev -p 3210
+```
+
 ## Build
 
 ```bash
