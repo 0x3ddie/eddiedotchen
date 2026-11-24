@@ -1,5 +1,11 @@
 [
   {
+    "title": "runescape-agent",
+    "category": "personal",
+    "description": "Recurrent PPO agent for an open-source 2004 RuneScape server emulator, trained with no scripts or demos and rewarded for the levels it gains. Includes a C simulator and released weights.",
+    "url": "https://github.com/0x3ddie/runescape-agent"
+  },
+  {
     "title": "local-turboquant",
     "category": "personal",
     "description": "Python library implementing TurboQuant KV cache compression for HuggingFace Transformers. One-line API plus CLI.",
@@ -33,13 +39,19 @@
     "title": "AtomicPDF",
     "category": "personal",
     "description": "Beginner project. Simple PDF toolkit for merging, splitting, and converting documents.",
-    "url": "https://www.atomicpdf.org/"
+    "url": "https://atomic-pdf.vercel.app/"
   },
   {
     "title": "codeafk",
     "category": "fun",
     "description": "Agent harness CLI that keeps Codex and Cursor CLI working while you're AFK. Drive sessions and approve shell commands from Telegram or Discord, no cloud deps.",
     "url": "https://github.com/0x3ddie/codeafk"
+  },
+  {
+    "title": "apple-book-sync",
+    "category": "fun",
+    "description": "Browser EPUB reader for an Apple Books library on Android. A Mac companion sends DRM-free EPUBs to the phone over WebRTC for offline reading and syncs reading position both ways.",
+    "url": "https://github.com/0x3ddie/apple-book-sync"
   },
   {
     "title": "eddie's civ 7",
@@ -63,6 +75,6 @@
     "title": "Syllab.ai",
     "category": "fun",
     "description": "AI-powered educational platform with personalized study recommendations",
-    "url": "https://lahacks-kpg2-2cjvqzcg6-echen1246s-projects.vercel.app/"
+    "url": "https://lahacks-kpg2.vercel.app/"
   }
 ]
